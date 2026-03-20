@@ -1,41 +1,62 @@
 # Rate My PC Bro 🖥️🔥
 
-The ultimate API for getting your rig judged. This is the backend for "Rate My PC Bro", a platform where users can submit their PC specs and get roasted or toasted by the community.
+The ultimate AI-powered PC rating engine. No databases, no persistent storage—just pure hardware discovery and local LLM-driven verdicts.
 
-## 🚀 Tech Stack (2026 Edition)
-- **Java 21** (LTS)
+## 🚀 How it Works
+1. **Hardware Discovery:** Uses [OSHI](https://github.com/oshi/oshi) to read your local CPU, GPU, and RAM in real-time.
+2. **AI Analysis:** Leverages [Spring AI](https://spring.io/projects/spring-ai) connected to a local **Ollama** instance.
+3. **Stateless Verdict:** Delivers a JSON-formatted roast or performance prediction directly to your browser.
+
+## 🛠️ Tech Stack
+- **Java 21**
 - **Spring Boot 3.4.0**
-- **Maven** (Build System)
-- **H2 Database** (In-memory for now, easy to swap)
-- **Lombok** (Boilerplate reduction)
-- **Jakarta Validation** (Keeping those specs clean)
+- **Spring AI (Ollama)**
+- **OSHI** (Operating System and Hardware Information)
+- **Maven**
 
-## 🛠️ Getting Started
+## 🏁 Getting Started
 
 ### Prerequisites
-- JDK 21+
-- Maven 3.9+
+1. **JDK 21+**
+2. **Ollama:** Install and run [Ollama](https://ollama.com/) locally.
+3. **Model:** Pull the llama3 model:
+   ```bash
+   ollama pull llama3
+   ```
 
-### Running the App
+### Running the API
 ```bash
 ./mvnw spring-boot:run
 ```
-(Or use your IDE's run button for `RateMyPcBroApplication.java`).
-
 The API will be available at `http://localhost:8080/api`.
 
-### Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET    | `/api/ping` | Health check to see if the bro is alive. |
+## 📡 API Modus Operandi
 
-## 🧪 Database & Console
-- **H2 Console:** `http://localhost:8080/api/h2-console`
-- **JDBC URL:** `jdbc:h2:mem:rate-my-pc-bro-db`
-- **Credentials:** `sa` / `password`
+### 1. General Verdict
+Returns a professional (and likely funny) verdict on your current PC hardware.
+- **Endpoint:** `GET /api/ratemypcbro`
+- **Response:**
+  ```json
+  {
+    "rating": "8/10",
+    "verdict": "A solid mid-range build.",
+    "roast": "Your GPU is working harder than a freelance dev on rent day."
+  }
+  ```
 
-## 🤝 Contributing
-Just open a PR, bro. Let's make this the best PC rating platform ever.
+### 2. Software Run Score
+Predicts how a specific piece of software will perform on your machine.
+- **Endpoint:** `GET /api/ratemypcbro/{typeofsoftware}/{name}`
+- **Example:** `GET /api/ratemypcbro/game/cyberpunk2077`
+- **Response:**
+  ```json
+  {
+    "software": "cyberpunk2077",
+    "score": "95/100",
+    "verdict": "Ultra settings ready.",
+    "performance_notes": "Expect 60+ FPS at 1440p."
+  }
+  ```
 
 ---
-*Built with ❤️ (and too much RGB).*
+*Built with ❤️, powered by Local AI.*
