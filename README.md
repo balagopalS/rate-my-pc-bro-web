@@ -1,69 +1,75 @@
-# Rate My PC Bro 🖥️🔥
+# Rate My PC Bro API
 
-The ultimate AI-powered PC rating engine. No databases, no persistent storage—just pure hardware discovery and local LLM-driven verdicts.
+An advanced, AI-powered hardware analysis and performance prediction engine built with Spring Boot.
 
-## 🚀 How it Works
-1. **Hardware Discovery:** Uses [OSHI](https://github.com/oshi/oshi) to read your local CPU, GPU, and RAM in real-time.
-2. **AI Analysis:** Leverages [Spring AI](https://spring.io/projects/spring-ai) connected to a local **Ollama** instance.
-3. **Stateless Verdict:** Delivers a JSON-formatted roast or performance prediction directly to your browser.
+## Overview
 
-## 🛠️ Tech Stack
-- **Java 21**
+Rate My PC Bro is a stateless API designed to provide automated hardware appraisals and software performance predictions. By integrating real-time hardware discovery with Large Language Models (LLMs), the system delivers qualitative and quantitative verdicts on system configurations without the need for persistent data storage.
+
+## Architectural Principles
+
+### 1. Statelessness
+The application operates entirely in memory. It does not utilize a database; hardware specifications are captured per request, processed via AI, and returned as a transient response.
+
+### 2. Automated Hardware Discovery
+The system leverages the **OSHI (Operating System and Hardware Information)** library to perform deep inspection of the host machine's architecture, including CPU topology, GPU specifications, and memory configuration.
+
+### 3. AI Orchestration
+The API features a decoupled AI orchestration layer that allows for runtime switching between local and remote processing:
+- **Local Provider:** Utilizes **Spring AI** and **Ollama** for private, on-device inference.
+- **Proxy Provider:** Routes requests through an external API proxy, enabling advanced capabilities such as real-time internet scraping and Retrieval-Augmented Generation (RAG).
+
+## Technology Stack
+
+- **Java 21** (LTS)
 - **Spring Boot 3.4.0**
-- **Spring AI (Ollama)**
-- **OSHI** (Operating System and Hardware Information)
+- **Spring AI**
+- **OSHI core**
 - **Maven**
 
-## 🏁 Getting Started
+## Getting Started
 
 ### Prerequisites
-1. **JDK 21+**
-2. **Ollama:** Install and run [Ollama](https://ollama.com/) locally.
-3. **Model:** Pull the llama3 model:
+
+1. **JDK 21** or higher.
+2. **Ollama** (for local AI inference).
+3. **Llama3 Model:** Ensure the model is available locally:
    ```bash
    ollama pull llama3
    ```
 
-### Running the API
+### Execution
+
+Compile and run the application using the Maven wrapper:
 ```bash
 ./mvnw spring-boot:run
 ```
-The API will be available at `http://localhost:8080/api`.
 
-## 📡 API Modus Operandi
+The service defaults to `http://localhost:8080/api`.
 
-### AI Provider Toggle System
-Switch between the local **Ollama** AI and an external **API Proxy** (for internet scraping/RAG).
+## API Reference
 
-- **Switch to Proxy:** `POST /api/ratemypcbro/config/provider?type=PROXY`
-- **Switch to Local:** `POST /api/ratemypcbro/config/provider?type=LOCAL`
-- **Check Active Provider:** `GET /api/ratemypcbro/config/provider`
+### Hardware Analysis
 
-### 1. General Verdict
-Returns a professional (and likely funny) verdict on your current PC hardware.
-- **Endpoint:** `GET /api/ratemypcbro`
-- **Response:**
-  ```json
-  {
-    "rating": "8/10",
-    "verdict": "A solid mid-range build.",
-    "roast": "Your GPU is working harder than a freelance dev on rent day."
-  }
-  ```
+#### General Hardware Verdict
+Analyzes current system specifications and returns a comprehensive rating and critique.
+- **URL:** `GET /ratemypcbro`
+- **Response Format:** JSON
 
-### 2. Software Run Score
-Predicts how a specific piece of software will perform on your machine.
-- **Endpoint:** `GET /api/ratemypcbro/{typeofsoftware}/{name}`
-- **Example:** `GET /api/ratemypcbro/game/cyberpunk2077`
-- **Response:**
-  ```json
-  {
-    "software": "cyberpunk2077",
-    "score": "95/100",
-    "verdict": "Ultra settings ready.",
-    "performance_notes": "Expect 60+ FPS at 1440p."
-  }
-  ```
+#### Software Performance Prediction
+Predicts performance metrics for a specific application based on current hardware.
+- **URL:** `GET /ratemypcbro/{type}/{name}`
+- **Example:** `GET /ratemypcbro/game/cyberpunk2077`
+- **Response Format:** JSON
 
----
-*Built with ❤️, powered by Local AI.*
+### System Configuration
+
+#### Update AI Provider
+Toggles the active AI inference engine at runtime.
+- **URL:** `POST /ratemypcbro/config/provider?type={LOCAL|PROXY}`
+- **Response Format:** JSON
+
+#### Current AI Provider Status
+Retrieves the identity of the active inference engine.
+- **URL:** `GET /ratemypcbro/config/provider`
+- **Response Format:** JSON
