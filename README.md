@@ -32,6 +32,13 @@ The API will be available at `http://localhost:8080/api`.
 
 ## 📡 API Modus Operandi
 
+### AI Provider Toggle System
+Switch between the local **Ollama** AI and an external **API Proxy** (for internet scraping/RAG).
+
+- **Switch to Proxy:** `POST /api/ratemypcbro/config/provider?type=PROXY`
+- **Switch to Local:** `POST /api/ratemypcbro/config/provider?type=LOCAL`
+- **Check Active Provider:** `GET /api/ratemypcbro/config/provider`
+
 ### 1. General Verdict
 Returns a professional (and likely funny) verdict on your current PC hardware.
 - **Endpoint:** `GET /api/ratemypcbro`

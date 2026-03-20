@@ -4,17 +4,16 @@ import com.ratemypcbro.dto.PcSpecs;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-
 @Service
-public class AiVerdictService {
+public class OllamaAiProvider implements AiProvider {
 
     private final ChatClient chatClient;
 
-    public AiVerdictService(ChatClient.Builder chatClientBuilder) {
+    public OllamaAiProvider(ChatClient.Builder chatClientBuilder) {
         this.chatClient = chatClientBuilder.build();
     }
 
+    @Override
     public String getGeneralVerdict(PcSpecs specs) {
         String prompt = String.format(
             "You are a professional PC hardware expert with a sense of humor. " +
@@ -26,6 +25,7 @@ public class AiVerdictService {
         return chatClient.prompt(prompt).call().content();
     }
 
+    @Override
     public String getSoftwareRunScore(PcSpecs specs, String type, String name) {
         String prompt = String.format(
             "You are a professional PC hardware expert. " +
