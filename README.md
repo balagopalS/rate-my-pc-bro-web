@@ -18,8 +18,8 @@ The API follows a structured request-response lifecycle to ensure accurate and c
     *   The AI model analyzes the prompt.
     *   If real-time data is required (e.g., latest market prices or 2026 benchmarks), the model invokes a registered **Search Tool** via Spring AI Function Calling.
     *   The model synthesizes a final verdict grounded in both static knowledge and retrieved internet data.
-6.  **JSON Synthesis:** The model's response is validated and formatted into a strictly typed JSON structure.
-7.  **Response Delivery:** The final JSON verdict is returned to the user.
+6.  **Structured Synthesis:** The model's response is automatically mapped to strictly typed DTOs (`GeneralVerdict`, `SoftwareVerdict`) using Spring AI's structured output features.
+7.  **Response Delivery:** The final serialized JSON object is returned to the user.
 
 ## Architectural Principles
 
@@ -40,8 +40,9 @@ The API features a decoupled AI orchestration layer that allows for runtime swit
 ## Technology Stack
 
 - **Java 21** (LTS)
-- **Spring Boot 3.4.0**
-- **Spring AI**
+- **Spring Boot 3.5.13**
+- **Spring AI (1.0.0-M5)**
+- **SpringDoc OpenAPI (Swagger)**
 - **OSHI core**
 - **Maven**
 
@@ -63,7 +64,12 @@ Compile and run the application using the Maven wrapper:
 ./mvnw spring-boot:run
 ```
 
-The service defaults to `http://localhost:8080/api`.
+The service defaults to `http://localhost:8081/api`.
+(Port 8081 is used to avoid local conflicts).
+
+### API Documentation (Swagger)
+Interactive documentation is available at runtime:
+- **URL:** `http://localhost:8081/api/swagger-ui/index.html`
 
 ## API Reference
 

@@ -7,9 +7,24 @@ spring:
       base-url: http://localhost:11434
       chat:
         options:
-          model: llama3
+          model: llama3.1
+    openai:
+      base-url: https://openrouter.ai/api
+      api-key: ${OPENROUTER_API_KEY}
+      chat:
+        options:
+          model: google/gemini-2.0-flash-lite-001
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: alpha
+    tagsSorter: alpha
+  show-actuator: true
 
 server:
-  port: 8080
+  port: 8081
   servlet:
     context-path: /api

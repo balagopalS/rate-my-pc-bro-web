@@ -1,6 +1,8 @@
 package com.ratemypcbro.controller;
 
+import com.ratemypcbro.dto.GeneralVerdict;
 import com.ratemypcbro.dto.PcSpecs;
+import com.ratemypcbro.dto.SoftwareVerdict;
 import com.ratemypcbro.service.AiOrchestrator;
 import com.ratemypcbro.service.AiProvider;
 import com.ratemypcbro.service.PcSpecService;
@@ -22,23 +24,19 @@ public class RateMyPcBroController {
     }
 
     @GetMapping
-    public ResponseEntity<String> getGeneralVerdict() {
+    public ResponseEntity<GeneralVerdict> getGeneralVerdict() {
         PcSpecs specs = pcSpecService.getLocalPcSpecs();
-        String result = aiOrchestrator.getGeneralVerdict(specs);
-        return ResponseEntity.ok()
-                .header("Content-Type", "application/json")
-                .body(result);
+        GeneralVerdict result = aiOrchestrator.getGeneralVerdict(specs);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{type}/{name}")
-    public ResponseEntity<String> getSoftwareVerdict(
+    public ResponseEntity<SoftwareVerdict> getSoftwareVerdict(
             @PathVariable String type,
             @PathVariable String name) {
         PcSpecs specs = pcSpecService.getLocalPcSpecs();
-        String result = aiOrchestrator.getSoftwareRunScore(specs, type, name);
-        return ResponseEntity.ok()
-                .header("Content-Type", "application/json")
-                .body(result);
+        SoftwareVerdict result = aiOrchestrator.getSoftwareRunScore(specs, type, name);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/config/provider")
@@ -53,6 +51,16 @@ public class RateMyPcBroController {
     @GetMapping("/config/provider")
     public ResponseEntity<Map<String, String>> getProvider() {
         return ResponseEntity.ok(Map.of(
+            "active_provider", aiOrchestrator.getProviderType().name()
+        ));
+    }
+
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, String>> healthCheck() {
+        String result = aiOrchestrator.testAi();
+        return ResponseEntity.ok(Map.of(
+            "status", "AI is reachable",
+            "response", result,
             "active_provider", aiOrchestrator.getProviderType().name()
         ));
     }

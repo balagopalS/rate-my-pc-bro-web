@@ -1,0 +1,22 @@
+services:
+
+  # ── The Rate My PC Bro API ────────────────────────────────────────────────
+  rate-my-pc-bro:
+    build: .
+    container_name: rate-my-pc-bro
+    ports:
+      - "8080:8080"
+    environment:
+      # Ollama runs on the host — use host.docker.internal to reach it
+      SPRING_AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      # Proxy URL — override this if using OpenRouter or another API proxy
+      APP_AI_PROXY_URL: ${APP_AI_PROXY_URL:-http://host.docker.internal:9000/api/v1/proxy}
+    # Required: OSHI uses /proc, /sys to read host hardware specs
+    privileged: true
+    volumes:
+      - /proc:/proc:ro
+      - /sys:/sys:ro
+    extra_hosts:
+      # Allows container to reach services running on the host (Ollama, etc.)
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

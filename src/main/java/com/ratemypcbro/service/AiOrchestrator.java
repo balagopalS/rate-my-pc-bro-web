@@ -1,6 +1,8 @@
 package com.ratemypcbro.service;
 
+import com.ratemypcbro.dto.GeneralVerdict;
 import com.ratemypcbro.dto.PcSpecs;
+import com.ratemypcbro.dto.SoftwareVerdict;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,11 +32,29 @@ public class AiOrchestrator {
         return activeType.get() == AiProvider.Type.LOCAL ? localProvider : proxyProvider;
     }
 
-    public String getGeneralVerdict(PcSpecs specs) {
-        return getActiveProvider().getGeneralVerdict(specs);
+    public GeneralVerdict getGeneralVerdict(PcSpecs specs) {
+        try {
+            return getActiveProvider().getGeneralVerdict(specs);
+        } catch (Exception e) {
+            String errorMsg = "Error getting AI verdict: " + e.getMessage();
+            return new GeneralVerdict("N/A", errorMsg, "The AI is currently speechless.");
+        }
     }
 
-    public String getSoftwareRunScore(PcSpecs specs, String type, String name) {
-        return getActiveProvider().getSoftwareRunScore(specs, type, name);
+    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name) {
+        try {
+            return getActiveProvider().getSoftwareRunScore(specs, type, name);
+        } catch (Exception e) {
+            String errorMsg = "Error getting AI software score: " + e.getMessage();
+            return new SoftwareVerdict(name, "N/A", errorMsg, "Check your connection.");
+        }
+    }
+
+    public String testAi() {
+        try {
+            return getActiveProvider().testAi();
+        } catch (Exception e) {
+            return "ERROR: " + e.getMessage();
+        }
     }
 }
