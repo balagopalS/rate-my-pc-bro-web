@@ -57,7 +57,9 @@ class RateMyPcBroControllerTest {
         when(pcSpecService.getLocalPcSpecs()).thenReturn(PcSpecs.builder().build());
         when(aiOrchestrator.getSoftwareRunScore(any(), anyString(), anyString())).thenReturn(mockVerdict);
 
-        mockMvc.perform(get("/ratemypcbro/game/cyberpunk"))
+        mockMvc.perform(get("/ratemypcbro/software")
+                .param("type", "game")
+                .param("name", "cyberpunk"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.software").value("Cyperpunk 2077"))

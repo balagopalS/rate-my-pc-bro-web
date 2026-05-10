@@ -31,11 +31,11 @@ public class RateMyPcBroController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/{type}/{name}")
+    @GetMapping("/software")
     //this returns a software verdict for the local pc for a given software and type
     public ResponseEntity<SoftwareVerdict> getSoftwareVerdict(
-            @PathVariable String type,
-            @PathVariable String name) {
+            @RequestParam String type,
+            @RequestParam String name) {
         PcSpecs specs = pcSpecService.getLocalPcSpecs();
         SoftwareVerdict result = aiOrchestrator.getSoftwareRunScore(specs, type, name);
         return ResponseEntity.ok(result);

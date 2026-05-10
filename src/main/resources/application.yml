@@ -8,6 +8,7 @@ spring:
       chat:
         options:
           model: llama3.2
+          num-predict: 1024
     openai:
       base-url: https://openrouter.ai/api
       api-key: ${OPENROUTER_API_KEY}

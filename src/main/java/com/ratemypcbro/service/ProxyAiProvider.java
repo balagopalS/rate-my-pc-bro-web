@@ -18,7 +18,7 @@ public class ProxyAiProvider implements AiProvider {
     }
 
     @Override
-    public GeneralVerdict getGeneralVerdict(PcSpecs specs) {
+    public GeneralVerdict getGeneralVerdict(PcSpecs specs, String groundingContext) {
         String systemInstructions = """
             You are a precise PC hardware analyst. 
             Provide honest takes. No sarcastic roasting.
@@ -60,12 +60,17 @@ public class ProxyAiProvider implements AiProvider {
             
             1. Set numeric 'rating' /10.
             2. Generate 'verdict'.
-            3. Provide thorough 'review' including potential bottlenecks or build quality.
+            3. Provide thorough 'review' including potential bottlenecks or build quality. Base your insights strictly on the GROUNDING CONTEXT provided below.
             4. Score individual hardware in 'breakdown'.
             5. Recommend actionable upgrades based on the specs.
+            
+            == GROUNDING CONTEXT ==
+            %s
+            =======================
             """,
             specs.getOs(), specs.getComputerModel(), specs.getProcessor(), specs.getCpuDetails(), specs.getMotherboard(), specs.getGraphicsCard(), 
-            specs.getVram(), specs.getDisplays(), specs.getTotalMemory(), specs.getRamDetails(), specs.getStorage(), specs.getPowerSource()
+            specs.getVram(), specs.getDisplays(), specs.getTotalMemory(), specs.getRamDetails(), specs.getStorage(), specs.getPowerSource(),
+            groundingContext
         );
 
         return chatClient.prompt()
@@ -76,7 +81,7 @@ public class ProxyAiProvider implements AiProvider {
     }
 
     @Override
-    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name) {
+    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String groundingContext) {
         String systemInstructions = """
             You are a precise software benchmarks estimator. 
             Return ONLY raw JSON with this exact shape:
@@ -103,11 +108,18 @@ public class ProxyAiProvider implements AiProvider {
             - Memory: %s (%s)
             - Storage: %s
             - Target Resolution/Displays: %s
+            
+            == GROUNDING CONTEXT ==
+            %s
+            =======================
+            
+            Base your verdict strictly on the real-world experiences and official requirements found in the GROUNDING CONTEXT.
             """,
             type, name,
             specs.getComputerModel(), specs.getOs(), specs.getProcessor(), specs.getCpuDetails(),
             specs.getGraphicsCard(), specs.getVram(), specs.getTotalMemory(), specs.getRamDetails(),
-            specs.getStorage(), specs.getDisplays()
+            specs.getStorage(), specs.getDisplays(),
+            groundingContext
         );
 
         return chatClient.prompt()

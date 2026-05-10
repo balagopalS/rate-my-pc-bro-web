@@ -14,11 +14,13 @@ public class AiOrchestrator {
 
     private final OllamaAiProvider localProvider;
     private final ProxyAiProvider proxyProvider;
+    private final AgentToolService agentToolService;
     private final AtomicReference<AiProvider.Type> activeType;
 
-    public AiOrchestrator(OllamaAiProvider localProvider, ProxyAiProvider proxyProvider) {
+    public AiOrchestrator(OllamaAiProvider localProvider, ProxyAiProvider proxyProvider, AgentToolService agentToolService) {
         this.localProvider = localProvider;
         this.proxyProvider = proxyProvider;
+        this.agentToolService = agentToolService;
         this.activeType = new AtomicReference<>(AiProvider.Type.LOCAL);
     }
 
@@ -36,7 +38,8 @@ public class AiOrchestrator {
 
     public GeneralVerdict getGeneralVerdict(PcSpecs specs) {
         try {
-            GeneralVerdict verdict = getActiveProvider().getGeneralVerdict(specs);
+            String groundingContext = agentToolService.getGeneralGrounding(specs);
+            GeneralVerdict verdict = getActiveProvider().getGeneralVerdict(specs, groundingContext);
             if (verdict != null) {
                 verdict.setReflectedSpecs(specs);
             }
@@ -53,7 +56,8 @@ public class AiOrchestrator {
 
     public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name) {
         try {
-            return getActiveProvider().getSoftwareRunScore(specs, type, name);
+            String groundingContext = agentToolService.getSoftwareGrounding(specs, name);
+            return getActiveProvider().getSoftwareRunScore(specs, type, name, groundingContext);
         } catch (Exception e) {
             String errorMsg = "Error getting AI software score: " + e.getMessage();
             return new SoftwareVerdict(name, "N/A", errorMsg, "Check your connection.");
