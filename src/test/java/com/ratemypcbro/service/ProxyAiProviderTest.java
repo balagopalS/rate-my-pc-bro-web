@@ -2,6 +2,7 @@ package com.ratemypcbro.service;
 
 import com.ratemypcbro.dto.GeneralVerdict;
 import com.ratemypcbro.dto.PcSpecs;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,13 +18,14 @@ class ProxyAiProviderTest {
     private PcSpecService pcSpecService;
 
     @Test
+    @Disabled("External API integration tests require valid OpenRouter API key, disabled for build pipelines.")
     void testAiReachable() {
         PcSpecs specs = pcSpecService.getLocalPcSpecs();
         GeneralVerdict response = proxyAiProvider.getGeneralVerdict(specs);
         assertNotNull(response);
         assertNotNull(response.getRating());
         assertNotNull(response.getVerdict());
-        assertNotNull(response.getRoast());
+        assertNotNull(response.getReview());
         System.out.println("AI Response: " + response);
     }
 }
