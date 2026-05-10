@@ -24,6 +24,7 @@ public class RateMyPcBroController {
     }
 
     @GetMapping
+    //this returns a general verdict for the local pc
     public ResponseEntity<GeneralVerdict> getGeneralVerdict() {
         PcSpecs specs = pcSpecService.getLocalPcSpecs();
         GeneralVerdict result = aiOrchestrator.getGeneralVerdict(specs);
@@ -31,6 +32,7 @@ public class RateMyPcBroController {
     }
 
     @GetMapping("/{type}/{name}")
+    //this returns a software verdict for the local pc for a given software and type
     public ResponseEntity<SoftwareVerdict> getSoftwareVerdict(
             @PathVariable String type,
             @PathVariable String name) {
@@ -40,6 +42,7 @@ public class RateMyPcBroController {
     }
 
     @PostMapping("/config/provider")
+    //this is used to toggle between different ai providers can be PROXY or LOCAL
     public ResponseEntity<Map<String, String>> toggleProvider(@RequestParam AiProvider.Type type) {
         aiOrchestrator.setProviderType(type);
         return ResponseEntity.ok(Map.of(
@@ -49,6 +52,7 @@ public class RateMyPcBroController {
     }
 
     @GetMapping("/config/provider")
+    //this is used to get the current ai provider
     public ResponseEntity<Map<String, String>> getProvider() {
         return ResponseEntity.ok(Map.of(
             "active_provider", aiOrchestrator.getProviderType().name()
@@ -56,6 +60,7 @@ public class RateMyPcBroController {
     }
 
     @GetMapping("/health")
+    //this is used to check the health of the ai 
     public ResponseEntity<Map<String, String>> healthCheck() {
         String result = aiOrchestrator.testAi();
         return ResponseEntity.ok(Map.of(

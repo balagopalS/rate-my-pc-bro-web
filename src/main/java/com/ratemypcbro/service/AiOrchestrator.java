@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Service
+//this is used to toggle between different ai providers can be PROXY or LOCAL, in this future this class will
+// be able to handle tools.
 public class AiOrchestrator {
 
     private final OllamaAiProvider localProvider;
@@ -34,10 +36,18 @@ public class AiOrchestrator {
 
     public GeneralVerdict getGeneralVerdict(PcSpecs specs) {
         try {
-            return getActiveProvider().getGeneralVerdict(specs);
+            GeneralVerdict verdict = getActiveProvider().getGeneralVerdict(specs);
+            if (verdict != null) {
+                verdict.setReflectedSpecs(specs);
+            }
+            return verdict;
         } catch (Exception e) {
             String errorMsg = "Error getting AI verdict: " + e.getMessage();
-            return new GeneralVerdict("N/A", errorMsg, "The AI is currently speechless.");
+            return GeneralVerdict.builder()
+                    .rating(0.0)
+                    .verdict(errorMsg)
+                    .review("The AI is currently speechless.")
+                    .build();
         }
     }
 

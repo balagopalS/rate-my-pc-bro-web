@@ -34,16 +34,21 @@ class RateMyPcBroControllerTest {
 
     @Test
     void shouldReturnGeneralVerdict() throws Exception {
-        GeneralVerdict mockVerdict = new GeneralVerdict("8/10", "Solid build", "Nice rig bro");
+        GeneralVerdict mockVerdict = GeneralVerdict.builder()
+                .rating(8.5)
+                .verdict("Solid build")
+                .review("Nice rig bro")
+                .build();
+
         when(pcSpecService.getLocalPcSpecs()).thenReturn(PcSpecs.builder().build());
         when(aiOrchestrator.getGeneralVerdict(any())).thenReturn(mockVerdict);
 
         mockMvc.perform(get("/ratemypcbro"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.rating").value("8/10"))
+                .andExpect(jsonPath("$.rating").value(8.5))
                 .andExpect(jsonPath("$.verdict").value("Solid build"))
-                .andExpect(jsonPath("$.roast").value("Nice rig bro"));
+                .andExpect(jsonPath("$.review").value("Nice rig bro"));
     }
 
     @Test

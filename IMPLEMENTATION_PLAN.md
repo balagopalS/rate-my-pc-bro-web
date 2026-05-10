@@ -1,54 +1,61 @@
-# Implementation Plan: Agentic RAG Hardware Analysis
+# Implementation Plan: Contemporary Agentic RAG Hardware Analysis
 
-This document outlines the technical phases required to transition the "Rate My PC Bro" API from a static prompt architecture to a dynamic, internet-grounded Agentic RAG system.
+This document outlines the technical phases required to transition the "Rate My PC Bro" API from a static prompt architecture to a dynamic, internet-grounded, production-grade Agentic system using Spring AI.
 
-## Phase 1: Search Tool Integration (Foundational)
+---
 
-The goal is to provide the LLM with "eyes" on the 2026 hardware market.
+## PHASE 1 — Make Outputs Production-Grade (Highest Priority)
+**Goal:** Stop returning vague text blobs; enforce contract-safety.
+- [x] **Harden Structured Output:** Explicitly use Spring AI's `BeanOutputConverter` to guarantee model output strictly obeys JSON schemas.
+- [x] **DTO Refinement:** Update `GeneralVerdict` and `SoftwareVerdict` records with validation annotations.
+- [x] **Provider Migration:** Update `OllamaAiProvider` and others to explicitly enforce `.entity(Class)` validation chains and handle parsing fallbacks.
 
-1.  **Define Search Request/Response Models:**
-    *   Create `SearchRequest` and `SearchResponse` records to standardize data exchange.
-2.  **Implement `WebSearchTool`:**
-    *   Develop a Spring-managed service that interfaces with a search provider (e.g., Brave Search API, Tavily, or a custom scraper).
-    *   Annotate with `@Bean` and a precise `@Description` to enable Spring AI auto-discovery for function calling.
-3.  **Security & Rate Limiting:**
-    *   Implement basic caching for search results (stateless within a time window) to prevent redundant API calls.
+---
 
-## Phase 2: Agentic Orchestration (Core)
+## PHASE 2 — Retrieval Augmentation (Crucial Step)
+**Goal:** Stop relying purely on stale model memory; fetch real hardware data.
+- [ ] **Data Gathering Pipeline:** Gather local PC specs -> Determine necessary queries -> Fetch live benchmark/pricing data.
+- [ ] **Context Augmentation:** Before passing data to the LLM, inject the retrieved search snippets directly into the ChatPrompt to guarantee data accuracy.
 
-Refactoring the AI providers to support multi-step reasoning.
+---
 
-1.  **Enhance `OllamaAiProvider`:**
-    *   Migrate to the `ChatClient` fluent API.
-    *   Register the `ToolCallAdvisor` to enable the model to autonomously invoke the `WebSearchTool`.
-    *   Switch to a tool-capable model (e.g., `llama3.1`).
-2.  **Prompt Engineering Refinement:**
-    *   Develop a system prompt that instructs the model to "Always verify 2026 benchmarks and pricing using the search tool before issuing a verdict."
-    *   Enforce structured output requirements (JSON) as a hard constraint in the prompt.
+## PHASE 3 — Tool Orchestration (Agentic Entry)
+**Goal:** Let the model decide *when* and *what* tools to use.
+- [ ] **Implement Web Tools:** Develop Spring-managed `@Bean` functions annotated with `@Description` (e.g., `searchWebForBenchmarks`, `checkHardwareCompatibility`).
+- [ ] **Register Function Callers:** Register `ToolCallAdvisor` with ChatClients to allow autonomous dynamic tool triggering by the model.
 
-## Phase 3: Structured Data Synthesis (Output)
+---
 
-Ensuring the AI's creative "roasts" don't break the API contract.
+## PHASE 4 — User Interface & CLI Access
+**Goal:** Bridge the gap between backend logic and end-users with intuitive interfaces.
+- [ ] **Modern Web Dashboard:** Build a beautiful, dark-themed Thymeleaf view (`index.html`) leveraging Vanilla CSS with dynamic visual performance gauges and sleek layout for AI text.
+- [ ] **Interactive Spring Shell:** Implement a lightweight CLI controller enabling commands directly from developer terminal shells.
 
-1.  **Define Output DTOs:**
-    *   `GeneralVerdictResponse` and `SoftwarePerformanceResponse` models.
-2.  **Implement `BeanOutputConverter`:**
-    *   Utilize Spring AI's output converters to map raw LLM strings directly into Java objects, providing a layer of validation before the controller responds.
+---
 
-## Phase 4: Proxy & RAG Alignment (Advanced)
+## PHASE 5 — Context + Memory (Conversational Continuity)
+**Goal:** Enable logical follow-ups (e.g., "Now check 1440p with those specs").
+- [ ] **Chat Memory Advisors:** Register `MessageChatMemoryAdvisor` using in-memory or persistent map stores.
+- [ ] **Session ID Management:** Update controllers/orchestrators to capture `chatId` to correctly partition user history.
+- [ ] **Dynamic Retrieval-Aware Assembly:** Combine current user message, historical window, and injected retrieved specs into a unified prompt context.
 
-Ensuring parity between local and remote providers.
+---
 
-1.  **Proxy Capabilities Extension:**
-    *   Update `ProxyAiProvider` to support passing tool definitions or instructing the remote proxy to utilize its own RAG/Search capabilities.
-2.  **Connectivity Handling:**
-    *   Implement fallback logic if the search tool or proxy is unavailable (e.g., falling back to the model's internal training data with a disclaimer).
+## PHASE 6 — Source Grounding & Citations
+**Goal:** Establish trust and show exactly *why* conclusions were reached.
+- [ ] **Expand Schema:** Add `List<Source>` field to verdict responses containing URLs, confidence scores, and text snippets used.
+- [ ] **Tool Chain Metadata:** Capture source metadata from the functions executed in Phase 3 and explicitly marshal them into the API's JSON response.
 
-## Phase 5: Verification & Validation (Final)
+---
 
-1.  **Automated Integration Tests:**
-    *   Mock the `WebSearchTool` to verify that the LLM successfully "calls" the function when presented with unknown hardware.
-2.  **Manual "2026 Drift" Test:**
-    *   Query the API for a hypothetical hardware component released after the model's cutoff to ensure it successfully retrieves internet data.
-3.  **Performance Benchmarking:**
-    *   Measure the latency added by the multi-step search process and optimize if necessary.
+## PHASE 7 — Lightweight Semantic Retrieval (Optional Expansion)
+**Goal:** Use Embeddings for caching and fast local memory searches.
+- [ ] **Vector Store Integration:** Add a local Vector DB (e.g., pgvector or Chroma) to cache repeated web lookup summaries.
+- [ ] **Semantic Similarity Caching:** Check local vector memory for similar benchmark queries before firing external API calls to save credits and drastically cut latency.
+
+---
+
+## Verification Plan
+- [ ] **Automated Tests:** Mock tool interfaces to ensure models generate autonomous execution plans.
+- [ ] **UI/Manual Testing:** Verify dark mode style and animation rendering in browsers; Verify Shell prompt interactivity.
+- [ ] **Grounding Audit:** Submit API requests and assert the response JSON includes valid citation links.

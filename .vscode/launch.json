@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-RateMyPcBroApplication<rate-my-pc-bro>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.ratemypcbro.RateMyPcBroApplication",
+            "projectName": "rate-my-pc-bro",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
