@@ -64,6 +64,9 @@ public class AgentToolService {
 
     // ==========================================
     // PHASE 3 ATOMIC TOOLS (Future-Proofed)
+    // TODO Phase 3: Annotate methods with Spring AI @Bean and @Description for autonomous tool-calling by LLM
+    // TODO Phase 3: Register ToolCallAdvisor on ChatClients to enable dynamic tool invocation
+    // TODO Phase 7: Integrate vector store similarity caching for repeated benchmark lookups
     // ==========================================
 
     public String searchCpuBenchmark(String cpuName) {

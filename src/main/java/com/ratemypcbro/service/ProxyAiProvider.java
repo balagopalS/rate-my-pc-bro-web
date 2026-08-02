@@ -13,36 +13,16 @@ import org.springframework.stereotype.Service;
 public class ProxyAiProvider implements AiProvider {
 
     private final ChatClient chatClient;
+    private final InstructionService instructionService;
 
-    public ProxyAiProvider(@Qualifier("openAiChatClient") ChatClient chatClient) {
+    public ProxyAiProvider(@Qualifier("openAiChatClient") ChatClient chatClient, InstructionService instructionService) {
         this.chatClient = chatClient;
+        this.instructionService = instructionService;
     }
 
     @Override
     public GeneralVerdict getGeneralVerdict(PcSpecs specs, String groundingContext) {
-        String systemInstructions = """
-            You are a precise PC hardware analyst. 
-            Provide honest takes. No sarcastic roasting.
-            
-            CRITICAL: You MUST return absolute, pure raw JSON matching THIS exact shape. 
-            Do NOT create arrays for rating or breakdown. 
-            Ensure rating is a single number.
-            
-            {
-              "rating": 8.5,
-              "verdict": "Short string here",
-              "review": "Detailed review string here",
-              "breakdown": {
-                "cpuScore": 8,
-                "gpuScore": 9,
-                "ramScore": 7,
-                "estimatedPerformance": "1080p Ultra"
-              },
-              "recommendations": ["rec1", "rec2"]
-            }
-            
-            DO NOT output anything other than the JSON object above.
-            """;
+        String systemInstructions = instructionService.getGeneralVerdictSystemInstructions();
 
         String userPrompt = String.format("""
             Analyze this computer deeply:
@@ -93,13 +73,7 @@ public class ProxyAiProvider implements AiProvider {
 
     @Override
     public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String groundingContext) {
-        String systemInstructions = """
-            You are a precise software benchmarks estimator.
-            Analyze the user's hardware specs and the grounding context to predict real-world performance.
-            NOTE ON MULTIPLE GPUS: If multiple GPUs are listed in the profile (e.g., 'NVIDIA GeForce RTX 3070 Ti Laptop GPU, Intel(R) UHD Graphics'), ALWAYS base your performance evaluation on the primary DEDICATED GPU (e.g. NVIDIA GeForce / AMD Radeon), NOT the integrated graphics card.
-            CRITICAL: Return ONLY a raw JSON instance object with key-value data fields ("software", "score", "verdict", "performance_notes").
-            Do NOT include "$schema", "type", or "properties" wrappers.
-            """;
+        String systemInstructions = instructionService.getSoftwareVerdictSystemInstructions();
 
         String prompt = String.format("""
             Predict real-world performance of this system for the %s: '%s'.
