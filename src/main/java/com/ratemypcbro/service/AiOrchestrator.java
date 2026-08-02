@@ -60,7 +60,12 @@ public class AiOrchestrator {
             return getActiveProvider().getSoftwareRunScore(specs, type, name, groundingContext);
         } catch (Exception e) {
             String errorMsg = "Error getting AI software score: " + e.getMessage();
-            return new SoftwareVerdict(name, "N/A", errorMsg, "Check your connection.");
+            return SoftwareVerdict.builder()
+                    .software(name)
+                    .score("N/A")
+                    .verdict(errorMsg)
+                    .performance_notes("Check your connection.")
+                    .build();
         }
     }
 

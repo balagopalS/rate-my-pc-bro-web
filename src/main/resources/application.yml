@@ -16,6 +16,9 @@ spring:
         options:
           model: openai/gpt-4o-mini
 
+tavily:
+  api-key: ${TAVILY_API_KEY:}
+
 brave:
   search:
     api-key: ${BRAVE_SEARCH_API_KEY:}

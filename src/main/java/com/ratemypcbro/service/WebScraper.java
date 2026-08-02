@@ -27,9 +27,13 @@ import java.util.stream.Collectors;
 @Service
 public class WebScraper {
 
+    private static final String TAVILY_API_URL = "https://api.tavily.com/search";
     private static final String BRAVE_API_URL = "https://api.search.brave.com/res/v1/web/search";
     private static final String YAHOO_SEARCH_URL = "https://search.yahoo.com/search?p=";
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
+
+    @Value("${tavily.api-key:}")
+    private String tavilyApiKey;
 
     @Value("${brave.search.api-key:}")
     private String braveApiKey;
@@ -41,8 +45,10 @@ public class WebScraper {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * Searches using Brave Search REST API if BRAVE_SEARCH_API_KEY is present,
-     * otherwise falls back to Jsoup Yahoo Search scraping.
+     * Executes web search with smart multi-tier fallback:
+     * 1. Tavily AI Search (TAVILY_API_KEY)
+     * 2. Brave Search API (BRAVE_SEARCH_API_KEY)
+     * 3. Jsoup Yahoo Search Scraper (Zero-config fallback)
      * @param query The search query
      * @param limit Maximum number of snippets to return
      * @return Formatted string of search snippets
@@ -54,7 +60,9 @@ public class WebScraper {
         }
 
         String resultText;
-        if (braveApiKey != null && !braveApiKey.isBlank()) {
+        if (tavilyApiKey != null && !tavilyApiKey.isBlank()) {
+            resultText = searchViaTavilyApi(query, limit);
+        } else if (braveApiKey != null && !braveApiKey.isBlank()) {
             resultText = searchViaBraveApi(query, limit);
         } else {
             resultText = searchViaYahooScraper(query, limit);
@@ -62,6 +70,59 @@ public class WebScraper {
 
         queryCache.put(query, resultText == null ? "" : resultText);
         return resultText;
+    }
+
+    private String searchViaTavilyApi(String query, int limit) {
+        log.debug("🏆 [Tavily Search API] Querying: '{}'", query);
+        try {
+            Map<String, Object> requestMap = Map.of(
+                    "api_key", tavilyApiKey.trim(),
+                    "query", query,
+                    "max_results", limit
+            );
+            String requestBody = objectMapper.writeValueAsString(requestMap);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(TAVILY_API_URL))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .timeout(Duration.ofSeconds(5))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                JsonNode root = objectMapper.readTree(response.body());
+                JsonNode resultsNode = root.path("results");
+                List<String> snippets = new ArrayList<>();
+                for (JsonNode item : resultsNode) {
+                    String content = item.path("content").asText("");
+                    if (!content.isBlank()) {
+                        snippets.add(content);
+                    }
+                    if (snippets.size() >= limit) break;
+                }
+
+                String resultText = String.join("\n- ", snippets);
+                log.info("🏆 [Tavily Search API] Retrieved {} snippets for query: '{}'", snippets.size(), query);
+                log.debug("🏆 [Tavily Snippets Content]:\n{}", resultText);
+                return resultText;
+            } else {
+                log.warn("⚠️ [Tavily Search API] Returned HTTP {}. Falling back to Brave/Yahoo...", response.statusCode());
+                return fallbackFromTavily(query, limit);
+            }
+        } catch (Exception e) {
+            log.error("❌ [Tavily Search API] Error: {}. Falling back to Brave/Yahoo...", e.getMessage());
+            return fallbackFromTavily(query, limit);
+        }
+    }
+
+    private String fallbackFromTavily(String query, int limit) {
+        if (braveApiKey != null && !braveApiKey.isBlank()) {
+            return searchViaBraveApi(query, limit);
+        }
+        return searchViaYahooScraper(query, limit);
     }
 
     private String searchViaBraveApi(String query, int limit) {
