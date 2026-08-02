@@ -21,8 +21,11 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 
+import org.junit.jupiter.api.Disabled;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled("Disabled for CI build environment - requires live local Ollama service")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class AiOrchestratorMultiProviderTest {
 
