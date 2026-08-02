@@ -16,8 +16,7 @@ import java.util.function.Function;
 public class SearchToolConfig {
 
     /**
-     * A mock implementation of the web search tool for Phase 1.
-     * In Phase 2, this will be replaced with a real API call (e.g., Brave Search).
+     * Web search tool using Tavily AI Search / fallback scraper.
      */
     @Bean
     @Description("Search the internet for the latest 2026 PC hardware benchmarks, market prices, and software requirements.")
