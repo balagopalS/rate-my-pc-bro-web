@@ -66,15 +66,16 @@ public class InstructionService {
     }
 
     /**
-     * Formats the Software Verdict user prompt template with app details, specs & web grounding context.
+     * Formats the Software Verdict user prompt template with app details, specs, user notes & web grounding context.
      */
-    public String buildSoftwareVerdictUserPrompt(PcSpecs specs, String type, String name, String groundingContext) {
+    public String buildSoftwareVerdictUserPrompt(PcSpecs specs, String type, String name, String notes, String groundingContext) {
+        String formattedNotes = (notes != null && !notes.isBlank()) ? notes.trim() : "None provided";
         return String.format(
             softwareVerdictUserPromptTemplate,
             type, name,
             specs.getComputerModel(), specs.getOs(), specs.getProcessor(), specs.getCpuDetails(),
             specs.getGraphicsCard(), specs.getVram(), specs.getTotalMemory(), specs.getRamDetails(),
-            specs.getStorage(), specs.getDisplays(),
+            specs.getStorage(), specs.getDisplays(), formattedNotes,
             groundingContext
         );
     }

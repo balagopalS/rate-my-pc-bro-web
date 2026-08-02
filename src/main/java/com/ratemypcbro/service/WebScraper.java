@@ -48,32 +48,62 @@ public class WebScraper {
      * @param limit Maximum number of snippets to return
      * @return Formatted string of search snippets
      */
+    public String search(com.ratemypcbro.dto.SearchRequest req) {
+        if (req == null || req.query() == null || req.query().isBlank()) {
+            return "";
+        }
+        String depth = req.searchDepth() != null && !req.searchDepth().isBlank() ? req.searchDepth() : "basic";
+        int limit = req.maxResults() != null && req.maxResults() > 0 ? req.maxResults() : 3;
+        List<String> incDomains = req.includeDomains();
+        List<String> excDomains = req.excludeDomains() != null && !req.excludeDomains().isEmpty() ? req.excludeDomains() : List.of("userbenchmark.com");
+        String topic = req.topic() != null && !req.topic().isBlank() ? req.topic() : "general";
+
+        return searchViaTavilyRich(req.query(), depth, limit, incDomains, excDomains, topic);
+    }
+
     public String search(String query, int limit) {
-        if (queryCache.containsKey(query)) {
-            log.debug("📦 [WebScraper] Cache HIT for query: '{}'", query);
-            return queryCache.get(query);
+        return search(query, limit, null);
+    }
+
+    public String search(String query, int limit, List<String> includeDomains) {
+        String cacheKey = query + (includeDomains != null && !includeDomains.isEmpty() ? ":" + String.join(",", includeDomains) : "");
+        if (queryCache.containsKey(cacheKey)) {
+            log.debug("📦 [WebScraper] Cache HIT for query: '{}'", cacheKey);
+            return queryCache.get(cacheKey);
         }
 
         String resultText;
         if (tavilyApiKey != null && !tavilyApiKey.isBlank()) {
-            resultText = searchViaTavilyApi(query, limit);
+            resultText = searchViaTavilyRich(query, "basic", limit, includeDomains, List.of("userbenchmark.com"), "general");
         } else {
             resultText = searchViaYahooScraper(query, limit);
         }
 
-        queryCache.put(query, resultText == null ? "" : resultText);
+        queryCache.put(cacheKey, resultText == null ? "" : resultText);
         return resultText;
     }
 
-    private String searchViaTavilyApi(String query, int limit) {
-        log.debug("🏆 [Tavily Search API] Querying: '{}'", query);
+    private String searchViaTavilyRich(String query, String depth, int limit, List<String> includeDomains, List<String> excludeDomains, String topic) {
+        log.debug("🏆 [Tavily Search API] Querying: '{}' (depth: {}, incDomains: {}, excDomains: {}, topic: {})", query, depth, includeDomains, excludeDomains, topic);
         try {
-            Map<String, Object> requestMap = Map.of(
-                    "api_key", tavilyApiKey.trim(),
-                    "query", query,
-                    "max_results", limit
-            );
+            java.util.Map<String, Object> requestMap = new java.util.HashMap<>();
+            requestMap.put("api_key", tavilyApiKey.trim());
+            requestMap.put("query", query);
+            requestMap.put("search_depth", depth);
+            requestMap.put("include_answer", true);
+            requestMap.put("include_raw_content", false);
+            requestMap.put("max_results", limit);
+            requestMap.put("topic", topic);
+
+            if (excludeDomains != null && !excludeDomains.isEmpty()) {
+                requestMap.put("exclude_domains", excludeDomains);
+            }
+            if (includeDomains != null && !includeDomains.isEmpty()) {
+                requestMap.put("include_domains", includeDomains);
+            }
+
             String requestBody = objectMapper.writeValueAsString(requestMap);
+            log.info("🏆 [Tavily Request Payload Body]:\n{}", requestBody);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(TAVILY_API_URL))
@@ -87,19 +117,33 @@ public class WebScraper {
 
             if (response.statusCode() == 200) {
                 JsonNode root = objectMapper.readTree(response.body());
+                
+                // 1. Extract Tavily's pre-synthesized AI Answer (if available)
+                String tavilyAnswer = root.path("answer").asText("").trim();
+                
+                // 2. Extract top snippet highlights
                 JsonNode resultsNode = root.path("results");
                 List<String> snippets = new ArrayList<>();
                 for (JsonNode item : resultsNode) {
-                    String content = item.path("content").asText("");
+                    String content = item.path("content").asText("").trim();
                     if (!content.isBlank()) {
                         snippets.add(content);
                     }
                     if (snippets.size() >= limit) break;
                 }
 
-                String resultText = String.join("\n- ", snippets);
-                log.info("🏆 [Tavily Search API] Retrieved {} snippets for query: '{}'", snippets.size(), query);
-                log.debug("🏆 [Tavily Snippets Content]:\n{}", resultText);
+                StringBuilder resultBuilder = new StringBuilder();
+                if (!tavilyAnswer.isBlank() && !tavilyAnswer.equalsIgnoreCase("null")) {
+                    resultBuilder.append("Summary: ").append(tavilyAnswer);
+                } else if (!snippets.isEmpty()) {
+                    // Fallback to snippets only if Tavily answer is unavailable
+                    resultBuilder.append("Details: ").append(String.join("\n- ", snippets));
+                }
+
+                String resultText = resultBuilder.toString().trim();
+                log.info("🏆 [Tavily Response AI Answer]: {}", tavilyAnswer.isBlank() ? "N/A" : tavilyAnswer);
+                log.info("🏆 [Tavily Response Snippets Count]: {} item(s)", snippets.size());
+                log.info("🏆 [Tavily Formatted Context Output]:\n{}", resultText);
                 return resultText;
             } else {
                 log.warn("⚠️ [Tavily Search API] Returned HTTP {}. Falling back to Yahoo scraper...", response.statusCode());

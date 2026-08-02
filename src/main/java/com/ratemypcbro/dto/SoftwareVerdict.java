@@ -22,6 +22,7 @@ public class SoftwareVerdict {
     private FpsEstimates fpsEstimates;
     private String recommendedSettings;
     private List<String> potentialBottlenecks;
+    private List<ToolCallTrace> toolCallTrace;
     private String detailedAnalysis;
 
     // Convenience 4-arg constructor for simple fallback initialization & legacy test mocks

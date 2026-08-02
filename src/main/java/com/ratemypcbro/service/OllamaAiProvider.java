@@ -43,9 +43,9 @@ public class OllamaAiProvider implements AiProvider {
     }
 
     @Override
-    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String groundingContext) {
+    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String notes, String groundingContext) {
         String systemInstructions = instructionService.getSoftwareVerdictSystemInstructions();
-        String userPrompt = instructionService.buildSoftwareVerdictUserPrompt(specs, type, name, groundingContext);
+        String userPrompt = instructionService.buildSoftwareVerdictUserPrompt(specs, type, name, notes, groundingContext);
 
         log.info("🦙 [Ollama Provider] Sending Software Verdict prompt for [{}: {}] to local LLM...", type, name);
         log.debug("🦙 [Ollama Prompt]:\n{}", userPrompt);

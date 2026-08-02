@@ -19,29 +19,56 @@ public class RateMyPcBroController {
     private final PcSpecService pcSpecService;
     private final AiOrchestrator aiOrchestrator;
     private final WebScraper webScraper;
+    private final com.ratemypcbro.service.AgentToolService agentToolService;
 
-    public RateMyPcBroController(PcSpecService pcSpecService, AiOrchestrator aiOrchestrator, WebScraper webScraper) {
+    public RateMyPcBroController(PcSpecService pcSpecService, AiOrchestrator aiOrchestrator, WebScraper webScraper, com.ratemypcbro.service.AgentToolService agentToolService) {
         this.pcSpecService = pcSpecService;
         this.aiOrchestrator = aiOrchestrator;
         this.webScraper = webScraper;
+        this.agentToolService = agentToolService;
     }
 
     @GetMapping
     //this returns a general verdict for the local pc
     public ResponseEntity<GeneralVerdict> getGeneralVerdict() {
-        PcSpecs specs = pcSpecService.getLocalPcSpecs();
-        GeneralVerdict result = aiOrchestrator.getGeneralVerdict(specs);
-        return ResponseEntity.ok(result);
+        com.ratemypcbro.context.ToolCallContext.clear();
+        try {
+            PcSpecs specs = pcSpecService.getLocalPcSpecs();
+            GeneralVerdict result = aiOrchestrator.getGeneralVerdict(specs);
+            java.util.List<com.ratemypcbro.dto.ToolCallTrace> traces = com.ratemypcbro.context.ToolCallContext.getTraces();
+            if (result != null && !traces.isEmpty()) {
+                result.setToolCallTrace(traces);
+            }
+            return ResponseEntity.ok(result);
+        } finally {
+            com.ratemypcbro.context.ToolCallContext.clear();
+        }
     }
 
     @GetMapping("/software")
     //this returns a software verdict for the local pc for a given software and type
     public ResponseEntity<SoftwareVerdict> getSoftwareVerdict(
             @RequestParam String type,
-            @RequestParam String name) {
-        PcSpecs specs = pcSpecService.getLocalPcSpecs();
-        SoftwareVerdict result = aiOrchestrator.getSoftwareRunScore(specs, type, name);
-        return ResponseEntity.ok(result);
+            @RequestParam String name,
+            @RequestParam(required = false) String notes,
+            @RequestParam(required = false, name = "caller_id") String callerId) {
+        String clientIdentity = (callerId != null && !callerId.isBlank()) ? callerId.trim() : "DEFAULT_CLIENT";
+        org.slf4j.LoggerFactory.getLogger(RateMyPcBroController.class).info(
+            "📱 [Software Verdict Request] App: '{}', Type: '{}', CallerID: '{}', Notes: '{}'",
+            name, type, clientIdentity, notes != null ? notes : "None"
+        );
+        com.ratemypcbro.context.ToolCallContext.clear();
+        try {
+            PcSpecs specs = pcSpecService.getLocalPcSpecs();
+            SoftwareVerdict result = aiOrchestrator.getSoftwareRunScore(specs, type, name, notes);
+            java.util.List<com.ratemypcbro.dto.ToolCallTrace> traces = com.ratemypcbro.context.ToolCallContext.getTraces();
+            if (result != null && !traces.isEmpty()) {
+                result.setToolCallTrace(traces);
+            }
+            return ResponseEntity.ok(result);
+        } finally {
+            com.ratemypcbro.context.ToolCallContext.clear();
+        }
     }
 
     @PostMapping("/config/provider")
@@ -63,13 +90,14 @@ public class RateMyPcBroController {
     }
 
     @PostMapping("/config/cache/clear")
-    //this endpoint clears the in-memory web scraping cache
+    //this endpoint clears the in-memory web scraping & hardware baseline cache
     public ResponseEntity<Map<String, Object>> clearCache() {
-        int clearedCount = webScraper.clearCache();
+        int scraperCleared = webScraper.clearCache();
+        int baselineCleared = agentToolService.clearCache();
         return ResponseEntity.ok(Map.of(
             "status", "success",
-            "message", "Web scraping cache cleared successfully",
-            "entries_removed", clearedCount
+            "message", "Web scraping & hardware baseline caches cleared successfully",
+            "entries_removed", scraperCleared + baselineCleared
         ));
     }
 

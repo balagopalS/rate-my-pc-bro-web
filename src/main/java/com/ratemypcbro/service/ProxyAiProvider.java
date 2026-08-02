@@ -43,9 +43,9 @@ public class ProxyAiProvider implements AiProvider {
     }
 
     @Override
-    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String groundingContext) {
+    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String notes, String groundingContext) {
         String systemInstructions = instructionService.getSoftwareVerdictSystemInstructions();
-        String userPrompt = instructionService.buildSoftwareVerdictUserPrompt(specs, type, name, groundingContext);
+        String userPrompt = instructionService.buildSoftwareVerdictUserPrompt(specs, type, name, notes, groundingContext);
 
         log.info("🌐 [Proxy API Provider] Sending Software Verdict prompt for [{}: {}] to OpenRouter API...", type, name);
         log.debug("🌐 [Proxy Prompt]:\n{}", userPrompt);

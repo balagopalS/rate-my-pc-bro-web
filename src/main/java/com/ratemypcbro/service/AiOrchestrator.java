@@ -55,9 +55,13 @@ public class AiOrchestrator {
     }
 
     public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name) {
+        return getSoftwareRunScore(specs, type, name, null);
+    }
+
+    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String notes) {
         try {
             String groundingContext = agentToolService.getSoftwareGrounding(specs, name);
-            return getActiveProvider().getSoftwareRunScore(specs, type, name, groundingContext);
+            return getActiveProvider().getSoftwareRunScore(specs, type, name, notes, groundingContext);
         } catch (Exception e) {
             String errorMsg = "Error getting AI software score: " + e.getMessage();
             return SoftwareVerdict.builder()
