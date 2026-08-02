@@ -3,12 +3,13 @@ package com.ratemypcbro.service;
 import com.ratemypcbro.dto.GeneralVerdict;
 import com.ratemypcbro.dto.PcSpecs;
 import com.ratemypcbro.dto.SoftwareVerdict;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
-// here too we need to implement tools and streaming responses and structured responses and prompt augmentation
 public class ProxyAiProvider implements AiProvider {
 
     private final ChatClient chatClient;
@@ -73,27 +74,31 @@ public class ProxyAiProvider implements AiProvider {
             groundingContext
         );
 
-        return chatClient.prompt()
+        log.info("🌐 [Proxy API Provider] Sending General Verdict prompt to OpenRouter API...");
+        log.debug("🌐 [Proxy Prompt]:\n{}", userPrompt);
+
+        GeneralVerdict verdict = chatClient.prompt()
                 .system(systemInstructions)
                 .user(userPrompt)
                 .call()
                 .entity(GeneralVerdict.class);
+
+        log.info("🌐 [Proxy API Provider] General Verdict Received: rating=[{}], verdict='{}'", 
+                verdict != null ? verdict.getRating() : "null", 
+                verdict != null ? verdict.getVerdict() : "null");
+        log.debug("🌐 [Proxy Result Payload]: {}", verdict);
+
+        return verdict;
     }
 
     @Override
     public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String groundingContext) {
         String systemInstructions = """
-            You are a precise software benchmarks estimator. 
-            Return ONLY raw JSON with this exact shape:
-            
-            {
-              "software": "Name of game",
-              "score": "85/100",
-              "verdict": "Excellent / playable / slow",
-              "performance_notes": "Detailed findings here."
-            }
-            
-            DO NOT include formatting tags like ```json or any trailing conversational fluff.
+            You are a precise software benchmarks estimator.
+            Analyze the user's hardware specs and the grounding context to predict real-world performance.
+            NOTE ON MULTIPLE GPUS: If multiple GPUs are listed in the profile (e.g., 'NVIDIA GeForce RTX 3070 Ti Laptop GPU, Intel(R) UHD Graphics'), ALWAYS base your performance evaluation on the primary DEDICATED GPU (e.g. NVIDIA GeForce / AMD Radeon), NOT the integrated graphics card.
+            CRITICAL: Return ONLY a raw JSON instance object with key-value data fields ("software", "score", "verdict", "performance_notes").
+            Do NOT include "$schema", "type", or "properties" wrappers.
             """;
 
         String prompt = String.format("""
@@ -122,15 +127,27 @@ public class ProxyAiProvider implements AiProvider {
             groundingContext
         );
 
-        return chatClient.prompt()
+        log.info("🌐 [Proxy API Provider] Sending Software Verdict prompt for [{}: {}] to OpenRouter API...", type, name);
+        log.debug("🌐 [Proxy Prompt]:\n{}", prompt);
+
+        SoftwareVerdict verdict = chatClient.prompt()
                 .system(systemInstructions)
                 .user(prompt)
                 .call()
                 .entity(SoftwareVerdict.class);
+
+        log.info("🌐 [Proxy API Provider] Software Verdict Received for [{}]: score=[{}], verdict='{}'", 
+                name,
+                verdict != null ? verdict.getScore() : "null", 
+                verdict != null ? verdict.getVerdict() : "null");
+        log.debug("🌐 [Proxy Result Payload]: {}", verdict);
+
+        return verdict;
     }
 
     @Override
     public String testAi() {
+        log.info("🌐 [Proxy API Provider] Executing ping health check...");
         return chatClient.prompt("Respond with only a single rocket emoji if you can hear me.")
                 .call()
                 .content();

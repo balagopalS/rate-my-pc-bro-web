@@ -8,13 +8,17 @@ spring:
       chat:
         options:
           model: llama3.2
-          num-predict: 1024
+          num-predict: 2048
     openai:
       base-url: https://openrouter.ai/api
       api-key: ${OPENROUTER_API_KEY}
       chat:
         options:
-          model: google/gemini-2.0-flash-lite-001
+          model: openai/gpt-4o-mini
+
+brave:
+  search:
+    api-key: ${BRAVE_SEARCH_API_KEY:}
 
 springdoc:
   api-docs:
@@ -32,4 +36,5 @@ server:
 
 logging:
   level:
+    com.ratemypcbro: DEBUG
     org.springframework.ai.chat.client.advisor: DEBUG

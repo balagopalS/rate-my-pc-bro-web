@@ -1,6 +1,7 @@
 package com.ratemypcbro.service;
 
 import com.ratemypcbro.dto.PcSpecs;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import oshi.SystemInfo;
 import oshi.hardware.ComputerSystem;
@@ -13,11 +14,13 @@ import oshi.util.FormatUtil;
 
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class PcSpecService {
 // lots of new things added to be fetched form oshi and added to our response
 // cpu details, storage details, etc
     public PcSpecs getLocalPcSpecs() {
+        log.debug("🔍 [OSHI] Initiating hardware spec discovery...");
         SystemInfo si = new SystemInfo();
         HardwareAbstractionLayer hal = si.getHardware();
         OperatingSystem os = si.getOperatingSystem();
@@ -82,7 +85,7 @@ public class PcSpecService {
 
         long totalMemory = hal.getMemory().getTotal();
 
-        return PcSpecs.builder()
+        PcSpecs specs = PcSpecs.builder()
                 .os(os.toString())
                 .computerModel(systemModel)
                 .processor(hal.getProcessor().getProcessorIdentifier().getName().trim())
@@ -96,5 +99,11 @@ public class PcSpecService {
                 .motherboard(mobo)
                 .powerSource(powerSource)
                 .build();
+
+        log.info("🖥️ [OSHI] Hardware Discovered: CPU=[{}], GPU=[{}], RAM=[{}], OS=[{}]", 
+                specs.getProcessor(), specs.getGraphicsCard(), specs.getTotalMemory(), specs.getOs());
+        log.debug("🖥️ [OSHI Full Specs]: {}", specs);
+
+        return specs;
     }
 }

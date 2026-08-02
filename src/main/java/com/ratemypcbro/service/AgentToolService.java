@@ -45,10 +45,16 @@ public class AgentToolService {
      * Executes queries for Software Performance prediction.
      */
     public String getSoftwareGrounding(PcSpecs specs, String softwareName) {
-        log.info("🎮 [AgentToolService] Initiating Software Grounding for Game: [{}] on GPU: [{}]", softwareName, specs.getGraphicsCard());
+        log.info("🎮 [AgentToolService] Initiating Software Grounding for App: [{}] on CPU: [{}] & GPU: [{}]", 
+                softwareName, specs.getProcessor(), specs.getGraphicsCard());
         
         StringBuilder sb = new StringBuilder();
         
+        // 1. Hardware Capability Baselines (CPU Passmark & GPU TechPowerUp summaries)
+        sb.append(searchCpuBenchmark(specs.getProcessor())).append("\n\n");
+        sb.append(searchGpuBenchmark(specs.getGraphicsCard())).append("\n\n");
+
+        // 2. Target Software System Requirements & Real-World Reddit Performance
         sb.append(searchSoftwareRequirements(softwareName)).append("\n\n");
         sb.append(searchSoftwarePerformance(softwareName, specs.getGraphicsCard())).append("\n\n");
         sb.append(searchSoftwarePerformance(softwareName, specs.getProcessor()));
