@@ -6,6 +6,7 @@ import com.ratemypcbro.dto.SoftwareVerdict;
 import com.ratemypcbro.service.AiOrchestrator;
 import com.ratemypcbro.service.AiProvider;
 import com.ratemypcbro.service.PcSpecService;
+import com.ratemypcbro.service.WebScraper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -32,6 +33,9 @@ class RateMyPcBroControllerTest {
     @MockitoBean
     private PcSpecService pcSpecService;
 
+    @MockitoBean
+    private WebScraper webScraper;
+
     @Test
     void shouldReturnGeneralVerdict() throws Exception {
         GeneralVerdict mockVerdict = GeneralVerdict.builder()
@@ -57,7 +61,9 @@ class RateMyPcBroControllerTest {
         when(pcSpecService.getLocalPcSpecs()).thenReturn(PcSpecs.builder().build());
         when(aiOrchestrator.getSoftwareRunScore(any(), anyString(), anyString())).thenReturn(mockVerdict);
 
-        mockMvc.perform(get("/ratemypcbro/game/cyberpunk"))
+        mockMvc.perform(get("/ratemypcbro/software")
+                .param("type", "game")
+                .param("name", "cyberpunk"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.software").value("Cyperpunk 2077"))
@@ -92,5 +98,15 @@ class RateMyPcBroControllerTest {
                 .andExpect(jsonPath("$.status").value("AI is reachable"))
                 .andExpect(jsonPath("$.response").value("?"))
                 .andExpect(jsonPath("$.active_provider").value("PROXY"));
+    }
+
+    @Test
+    void shouldClearCache() throws Exception {
+        when(webScraper.clearCache()).thenReturn(5);
+
+        mockMvc.perform(post("/ratemypcbro/config/cache/clear"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.entries_removed").value(5));
     }
 }

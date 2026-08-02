@@ -21,7 +21,7 @@ class ProxyAiProviderTest {
     @Disabled("External API integration tests require valid OpenRouter API key, disabled for build pipelines.")
     void testAiReachable() {
         PcSpecs specs = pcSpecService.getLocalPcSpecs();
-        GeneralVerdict response = proxyAiProvider.getGeneralVerdict(specs);
+        GeneralVerdict response = proxyAiProvider.getGeneralVerdict(specs, "");
         assertNotNull(response);
         assertNotNull(response.getRating());
         assertNotNull(response.getVerdict());

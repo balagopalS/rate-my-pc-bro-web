@@ -1,0 +1,41 @@
+# Rate My PC Bro — Gemini & Antigravity Instructions (.geminirules)
+
+## 📌 Project Overview
+**Rate My PC Bro** is a stateless, AI-powered hardware appraisal and software performance prediction engine built with **Java 21** and **Spring Boot 3.5**.
+
+- **Hardware Inspection**: Real-time host CPU, GPU, RAM, storage, and motherboard detection via **OSHI**.
+- **Agentic RAG**: Live web scraping via **Jsoup** for 2026 benchmarks, official requirements, and Reddit performance reports.
+- **AI Orchestration**: Runtime toggleable inference providers:
+  - `LOCAL`: Ollama (`llama3.2`) on `http://localhost:11434`
+  - `PROXY`: OpenRouter API (`openai/gpt-4o-mini`) on `https://openrouter.ai/api`
+
+---
+
+## 🛠️ Key Architectural & Coding Rules
+
+### 1. Structured JSON Output & Schema Invariants
+- Use Spring AI `BeanOutputConverter` (`.entity(Class)`) for strict DTO mapping (`GeneralVerdict`, `SoftwareVerdict`).
+- In system prompts, always enforce flat JSON instance formatting to prevent models from outputting `$schema` or `properties` wrapper objects:
+  ```text
+  CRITICAL: Return ONLY a raw JSON instance object with key-value data fields.
+  Do NOT include "$schema", "type", or "properties" wrappers.
+  ```
+
+### 2. Provider Base-URL Mapping
+- For OpenRouter API integration via Spring AI's OpenAI starter (`spring.ai.openai`), set:
+  ```yaml
+  spring:
+    ai:
+      openai:
+        base-url: https://openrouter.ai/api
+  ```
+  *(Spring AI automatically appends `/v1/chat/completions`).*
+
+### 3. Integration Test Self-Healing Invariants
+- All integration tests must run autonomously in CI/CD without manual human intervention.
+- Local Ollama tests (`@BeforeAll`) must execute health check pings on `http://localhost:11434/api/tags` and attempt background auto-start via `ProcessBuilder` if offline.
+- Multi-provider tests must assert readiness for both `LOCAL` and `PROXY` (`OPENROUTER_API_KEY`) engines.
+
+### 4. Cache & Logging Operations
+- In-memory web search cache can be cleared at runtime via `POST /ratemypcbro/config/cache/clear`.
+- Enable `com.ratemypcbro: DEBUG` in `application.yml` for full visibility into OSHI discovery, scraped snippets, and LLM payloads.
