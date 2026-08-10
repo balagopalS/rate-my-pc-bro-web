@@ -3,45 +3,73 @@ package com.ratemypcbro.controller;
 import com.ratemypcbro.dto.GeneralVerdict;
 import com.ratemypcbro.dto.PcSpecs;
 import com.ratemypcbro.dto.SoftwareVerdict;
+import com.ratemypcbro.dto.ToolCallTrace;
+import com.ratemypcbro.service.AgentToolService;
 import com.ratemypcbro.service.AiOrchestrator;
 import com.ratemypcbro.service.AiProvider;
 import com.ratemypcbro.service.PcSpecService;
 import com.ratemypcbro.service.WebScraper;
+import com.ratemypcbro.context.ToolCallContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/ratemypcbro")
+@RequiredArgsConstructor
 public class RateMyPcBroController {
 
     private final PcSpecService pcSpecService;
     private final AiOrchestrator aiOrchestrator;
     private final WebScraper webScraper;
-
-    public RateMyPcBroController(PcSpecService pcSpecService, AiOrchestrator aiOrchestrator, WebScraper webScraper) {
-        this.pcSpecService = pcSpecService;
-        this.aiOrchestrator = aiOrchestrator;
-        this.webScraper = webScraper;
-    }
+    private final AgentToolService agentToolService;
 
     @GetMapping
     //this returns a general verdict for the local pc
     public ResponseEntity<GeneralVerdict> getGeneralVerdict() {
-        PcSpecs specs = pcSpecService.getLocalPcSpecs();
-        GeneralVerdict result = aiOrchestrator.getGeneralVerdict(specs);
-        return ResponseEntity.ok(result);
+        ToolCallContext.clear();
+        try {
+            PcSpecs specs = pcSpecService.getLocalPcSpecs();
+            GeneralVerdict result = aiOrchestrator.getGeneralVerdict(specs);
+            List<ToolCallTrace> traces = ToolCallContext.getTraces();
+            if (result != null && !traces.isEmpty()) {
+                result.setToolCallTrace(traces);
+            }
+            return ResponseEntity.ok(result);
+        } finally {
+            ToolCallContext.clear();
+        }
     }
 
     @GetMapping("/software")
     //this returns a software verdict for the local pc for a given software and type
     public ResponseEntity<SoftwareVerdict> getSoftwareVerdict(
             @RequestParam String type,
-            @RequestParam String name) {
-        PcSpecs specs = pcSpecService.getLocalPcSpecs();
-        SoftwareVerdict result = aiOrchestrator.getSoftwareRunScore(specs, type, name);
-        return ResponseEntity.ok(result);
+            @RequestParam String name,
+            @RequestParam(required = false) String notes,
+            @RequestParam(required = false, name = "caller_id") String callerId) {
+        String clientIdentity = (callerId != null && !callerId.isBlank()) ? callerId.trim() : "DEFAULT_CLIENT";
+        log.info(
+            "📱 [Software Verdict Request] App: '{}', Type: '{}', CallerID: '{}', Notes: '{}'",
+            name, type, clientIdentity, notes != null ? notes : "None"
+        );
+        ToolCallContext.clear();
+        try {
+            PcSpecs specs = pcSpecService.getLocalPcSpecs();
+            SoftwareVerdict result = aiOrchestrator.getSoftwareRunScore(specs, type, name, notes);
+            List<ToolCallTrace> traces = ToolCallContext.getTraces();
+            if (result != null && !traces.isEmpty()) {
+                result.setToolCallTrace(traces);
+            }
+            return ResponseEntity.ok(result);
+        } finally {
+            ToolCallContext.clear();
+        }
     }
 
     @PostMapping("/config/provider")
@@ -63,13 +91,14 @@ public class RateMyPcBroController {
     }
 
     @PostMapping("/config/cache/clear")
-    //this endpoint clears the in-memory web scraping cache
+    //this endpoint clears the in-memory web scraping & hardware baseline cache
     public ResponseEntity<Map<String, Object>> clearCache() {
-        int clearedCount = webScraper.clearCache();
+        int scraperCleared = webScraper.clearCache();
+        int baselineCleared = agentToolService.clearCache();
         return ResponseEntity.ok(Map.of(
             "status", "success",
-            "message", "Web scraping cache cleared successfully",
-            "entries_removed", clearedCount
+            "message", "Web scraping & hardware baseline caches cleared successfully",
+            "entries_removed", scraperCleared + baselineCleared
         ));
     }
 

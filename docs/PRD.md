@@ -1,14 +1,39 @@
 # Product Requirements Document (PRD)
 
-**Problem Solved:** Users lack an immediate, data-driven, and humorous appraisal of their current hardware configuration against modern benchmarks and software requirements.
+## Product Overview
 
-**JTBD (Jobs to Be Done):** When I am evaluating my hardware, I want to get an expert, AI-driven assessment and performance prediction so that I can decide if an upgrade is necessary.
+Rate My PC Bro is an automated hardware appraisal and software compatibility analysis engine. The application combines host hardware discovery with Large Language Models (LLMs) and real-time internet retrieval to provide qualitative hardware evaluations and quantitative software performance predictions.
 
-**DVF (Desirability, Viability, Feasibility):**
-- **Desirability:** High, as users value instant, personalized feedback on their "battlestations."
-- **Viability:** Strong, utilizing a stateless, cost-efficient model with toggleable AI providers.
-- **Feasibility:** High, leveraging existing OSHI and Spring AI frameworks for rapid deployment.
+---
 
-**Moat:** A proprietary Agentic RAG architecture that combines real-time local hardware discovery with dynamic internet search-grounding and a distinct "roast" personality.
+## Core Problem Statement
 
-**Opportunity Cost:** Forgoing the development of this AI-driven stateless engine would leave us reliant on static, outdated benchmarks and manual user input, missing the window for real-time hardware analysis leadership.
+Users require immediate, data-driven assessments of their system hardware capabilities relative to modern application requirements and industry benchmarks without relying on manual entry or outdated static databases.
+
+---
+
+## Jobs to Be Done (JTBD)
+
+When evaluating system hardware or considering software purchases, users require an automated evaluation of their host configuration so that they can determine performance viability and identify potential hardware bottlenecks.
+
+---
+
+## Desirability, Viability, and Feasibility (DVF)
+
+- **Desirability**: Provides instant system evaluation and software performance predictions based on real-time hardware discovery.
+- **Viability**: Operates statelessly without persistent storage requirements, utilizing customizable and cost-effective AI provider runtimes (`LOCAL` and `PROXY`).
+- **Feasibility**: Built on Spring Boot, OSHI hardware discovery, and Spring AI function calling interfaces.
+
+---
+
+## Architectural Moat
+
+An Agentic Retrieval-Augmented Generation (RAG) pipeline that combines local hardware discovery via OSHI with web retrieval through Tavily AI Search and structured DTO response guarantees via Spring AI output converters.
+
+---
+
+## Non-Functional Requirements
+
+1. **Stateless Execution**: The application must process all requests in-memory without persistent database dependencies.
+2. **Thread Safety**: Request-scoped tool execution tracking must be strictly isolated per thread using `ThreadLocal` storage.
+3. **Structured Response Contracts**: All LLM outputs must map strictly to typed Java DTOs (`GeneralVerdict`, `SoftwareVerdict`).

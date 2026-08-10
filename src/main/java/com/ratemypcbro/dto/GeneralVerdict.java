@@ -19,6 +19,7 @@ public class GeneralVerdict {
     private HardwareBreakdown breakdown;
     private PcSpecs reflectedSpecs;
     private List<String> recommendations;
+    private List<ToolCallTrace> toolCallTrace;
 
     @Data
     @Builder

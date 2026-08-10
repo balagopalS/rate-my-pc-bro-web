@@ -1,103 +1,140 @@
 package com.ratemypcbro.service;
 
 import com.ratemypcbro.dto.PcSpecs;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AgentToolService {
 
+    private static final List<String> HARDWARE_DOMAINS = List.of(
+            "techpowerup.com", "notebookcheck.net", "reddit.com", "tomshardware.com"
+    );
+
+    private static final List<String> SOFTWARE_DOMAINS = List.of(
+            "pcgamingwiki.com", "systemrequirementslab.com", "reddit.com", "techpowerup.com"
+    );
+
     private final WebScraper scraper;
-
-    public AgentToolService(WebScraper scraper) {
-        this.scraper = scraper;
-    }
-
-    // ==========================================
-    // PHASE 2 AGGREGATORS (Deterministic)
-    // ==========================================
+    private final Map<String, String> hardwareBaselineCache = new ConcurrentHashMap<>();
 
     /**
-     * Executes queries for General PC analysis (benchmarks and reddit).
+     * Executes single consolidated scoped query for General PC analysis (CPU + GPU + Chassis + Thermals + Bottlenecks).
+     * Caches the Hardware Baseline in memory for reuse by Software Verdict queries.
      */
     public String getGeneralGrounding(PcSpecs specs) {
-        log.info("🚀 [AgentToolService] Initiating General Grounding Phase for CPU: [{}] and GPU: [{}]", specs.getProcessor(), specs.getGraphicsCard());
-        
-        StringBuilder sb = new StringBuilder();
-        
-        sb.append(searchCpuBenchmark(specs.getProcessor())).append("\n\n");
-        sb.append(searchGpuBenchmark(specs.getGraphicsCard())).append("\n\n");
-        sb.append(searchHardwareBottleneck(specs.getProcessor(), specs.getGraphicsCard())).append("\n\n");
-        
-        if (specs.getComputerModel() != null && !specs.getComputerModel().toLowerCase().contains("unknown") && !specs.getComputerModel().toLowerCase().contains("to be filled")) {
-            sb.append(searchChassisIssues(specs.getComputerModel())).append("\n\n");
+        String key = buildHardwareSignature(specs);
+        if (hardwareBaselineCache.containsKey(key)) {
+            log.info("📦 [AgentToolService] Hardware Baseline Cache HIT for specs: [{}]", key);
+            return hardwareBaselineCache.get(key);
         }
 
-        return sb.toString().trim();
+        log.info("🚀 [AgentToolService] Initiating Scoped Hardware Grounding for CPU: [{}] and GPU: [{}]", specs.getProcessor(), specs.getGraphicsCard());
+
+        String query = buildHardwareScopedQuery(specs);
+        String result = scraper.search(query, 3, HARDWARE_DOMAINS);
+        String grounding = "[HARDWARE BASELINE & THERMALS (" + query + ")]\n" + result;
+
+        hardwareBaselineCache.put(key, grounding);
+        return grounding;
     }
 
     /**
-     * Executes queries for Software Performance prediction.
+     * Executes Software Performance prediction grounding.
+     * Reuses cached Hardware Baseline if available, or fetches Hardware Baseline + Software Grounding in PARALLEL via CompletableFuture!
      */
     public String getSoftwareGrounding(PcSpecs specs, String softwareName) {
-        log.info("🎮 [AgentToolService] Initiating Software Grounding for App: [{}] on CPU: [{}] & GPU: [{}]", 
+        log.info("🎮 [AgentToolService] Initiating Orchestrated Software Grounding for App: [{}] on CPU: [{}] & GPU: [{}]",
                 softwareName, specs.getProcessor(), specs.getGraphicsCard());
-        
-        StringBuilder sb = new StringBuilder();
-        
-        // 1. Hardware Capability Baselines (CPU Passmark & GPU TechPowerUp summaries)
-        sb.append(searchCpuBenchmark(specs.getProcessor())).append("\n\n");
-        sb.append(searchGpuBenchmark(specs.getGraphicsCard())).append("\n\n");
 
-        // 2. Target Software System Requirements & Real-World Reddit Performance
-        sb.append(searchSoftwareRequirements(softwareName)).append("\n\n");
-        sb.append(searchSoftwarePerformance(softwareName, specs.getGraphicsCard())).append("\n\n");
-        sb.append(searchSoftwarePerformance(softwareName, specs.getProcessor()));
+        String key = buildHardwareSignature(specs);
 
-        return sb.toString().trim();
-    }
-
-    // ==========================================
-    // PHASE 3 ATOMIC TOOLS (Future-Proofed)
-    // TODO Phase 3: Annotate methods with Spring AI @Bean and @Description for autonomous tool-calling by LLM
-    // TODO Phase 3: Register ToolCallAdvisor on ChatClients to enable dynamic tool invocation
-    // TODO Phase 7: Integrate vector store similarity caching for repeated benchmark lookups
-    // ==========================================
-
-    public String searchCpuBenchmark(String cpuName) {
-        return fetchSection("CPU BENCHMARK", cpuName + " Passmark benchmark score");
-    }
-
-    public String searchGpuBenchmark(String gpuName) {
-        return fetchSection("GPU BENCHMARK", gpuName + " TechPowerUp review summary");
-    }
-
-    public String searchHardwareBottleneck(String cpuName, String gpuName) {
-        return fetchSection("BOTTLENECK EXPERIENCES", cpuName + " and " + gpuName + " bottleneck site:reddit.com");
-    }
-
-    public String searchChassisIssues(String computerModel) {
-        return fetchSection("CHASSIS ISSUES", computerModel + " thermal throttling common issues site:reddit.com");
-    }
-
-    public String searchSoftwareRequirements(String softwareName) {
-        return fetchSection("OFFICIAL REQUIREMENTS", softwareName + " official recommended PC system requirements");
-    }
-
-    public String searchSoftwarePerformance(String softwareName, String hardwareComponent) {
-        return fetchSection("REAL-WORLD PERFORMANCE", softwareName + " " + hardwareComponent + " performance FPS site:reddit.com");
-    }
-
-    private String fetchSection(String label, String query) {
-        String results = scraper.search(query, 3);
-        if (results == null || results.isBlank() || results.startsWith("Failed")) {
-            return ""; // Fail silently if no data to not poison the prompt
+        // 1. If Hardware Baseline is already cached (e.g. GET /ratemypcbro called first), fetch ONLY software context!
+        if (hardwareBaselineCache.containsKey(key)) {
+            log.info("📦 [AgentToolService] Reusing Cached Hardware Baseline for App: [{}]", softwareName);
+            String cachedHardware = hardwareBaselineCache.get(key);
+            String softwareGrounding = fetchScopedSoftwareGrounding(specs, softwareName);
+            return cachedHardware + "\n\n" + softwareGrounding;
         }
-        return "[" + label + " (" + query + ")]\n- " + results;
+
+        // 2. Cold start: Execute Hardware Baseline query AND Software query in PARALLEL using CompletableFuture!
+        log.info("⚡ [AgentToolService] Cold Start: Executing Hardware Baseline & Software Grounding in PARALLEL via CompletableFuture...");
+        CompletableFuture<String> hwFuture = CompletableFuture.supplyAsync(() -> getGeneralGrounding(specs));
+        CompletableFuture<String> swFuture = CompletableFuture.supplyAsync(() -> fetchScopedSoftwareGrounding(specs, softwareName));
+
+        CompletableFuture.allOf(hwFuture, swFuture).join();
+
+        try {
+            return hwFuture.get() + "\n\n" + swFuture.get();
+        } catch (Exception e) {
+            log.error("⚠️ Failed to resolve parallel grounding futures", e);
+            return fetchScopedSoftwareGrounding(specs, softwareName);
+        }
+    }
+
+    private String fetchScopedSoftwareGrounding(PcSpecs specs, String softwareName) {
+        String cleanGpu = cleanGpuForQuery(specs.getGraphicsCard());
+        String cleanCpu = cleanCpuForQuery(specs.getProcessor());
+
+        String query = String.format("%s official system requirements %s %s performance FPS",
+                softwareName, cleanGpu, cleanCpu);
+
+        String result = scraper.search(query, 3, SOFTWARE_DOMAINS);
+        return "[SOFTWARE SPECIFIC PERFORMANCE (" + query + ")]\n" + result;
+    }
+
+    private String buildHardwareScopedQuery(PcSpecs specs) {
+        StringBuilder sb = new StringBuilder();
+        String cleanCpu = cleanCpuForQuery(specs.getProcessor());
+        String cleanGpu = cleanGpuForQuery(specs.getGraphicsCard());
+
+        if (!cleanCpu.isBlank()) sb.append(cleanCpu).append(" ");
+        if (!cleanGpu.isBlank()) sb.append(cleanGpu).append(" ");
+        if (specs.getComputerModel() != null && !specs.getComputerModel().toLowerCase().contains("unknown")
+                && !specs.getComputerModel().toLowerCase().contains("to be filled")) {
+            sb.append(specs.getComputerModel()).append(" ");
+        }
+        sb.append("gaming performance bottleneck thermal throttling");
+        return sb.toString().replaceAll("\\s+", " ").trim();
+    }
+
+    private String cleanGpuForQuery(String rawGpu) {
+        if (rawGpu == null) return "";
+        String[] parts = rawGpu.split(",");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.toLowerCase().contains("intel(r) uhd") && !trimmed.toLowerCase().contains("integrated graphics")) {
+                return trimmed;
+            }
+        }
+        return parts[0].trim();
+    }
+
+    private String cleanCpuForQuery(String rawCpu) {
+        if (rawCpu == null) return "";
+        return rawCpu.replaceAll("(?i)\\((R|TM|C)\\)", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private String buildHardwareSignature(PcSpecs specs) {
+        return (specs.getProcessor() + "|" + specs.getGraphicsCard() + "|" + specs.getComputerModel()).trim();
+    }
+
+    /**
+     * Clears in-memory hardware baseline cache.
+     */
+    public int clearCache() {
+        int count = hardwareBaselineCache.size();
+        hardwareBaselineCache.clear();
+        return count;
     }
 }

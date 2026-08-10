@@ -36,6 +36,9 @@ class RateMyPcBroControllerTest {
     @MockitoBean
     private WebScraper webScraper;
 
+    @MockitoBean
+    private com.ratemypcbro.service.AgentToolService agentToolService;
+
     @Test
     void shouldReturnGeneralVerdict() throws Exception {
         GeneralVerdict mockVerdict = GeneralVerdict.builder()
@@ -59,7 +62,7 @@ class RateMyPcBroControllerTest {
     void shouldReturnSoftwareVerdict() throws Exception {
         SoftwareVerdict mockVerdict = new SoftwareVerdict("Cyperpunk 2077", "9/10", "Will run great", "Expect 60fps");
         when(pcSpecService.getLocalPcSpecs()).thenReturn(PcSpecs.builder().build());
-        when(aiOrchestrator.getSoftwareRunScore(any(), anyString(), anyString())).thenReturn(mockVerdict);
+        when(aiOrchestrator.getSoftwareRunScore(any(), anyString(), anyString(), any())).thenReturn(mockVerdict);
 
         mockMvc.perform(get("/ratemypcbro/software")
                 .param("type", "game")

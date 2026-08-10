@@ -27,12 +27,12 @@ import java.util.stream.Collectors;
 @Service
 public class WebScraper {
 
-    private static final String BRAVE_API_URL = "https://api.search.brave.com/res/v1/web/search";
+    private static final String TAVILY_API_URL = "https://api.tavily.com/search";
     private static final String YAHOO_SEARCH_URL = "https://search.yahoo.com/search?p=";
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
 
-    @Value("${brave.search.api-key:}")
-    private String braveApiKey;
+    @Value("${tavily.api-key:}")
+    private String tavilyApiKey;
 
     private final Map<String, String> queryCache = new ConcurrentHashMap<>();
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -41,67 +41,116 @@ public class WebScraper {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * Searches using Brave Search REST API if BRAVE_SEARCH_API_KEY is present,
-     * otherwise falls back to Jsoup Yahoo Search scraping.
+     * Executes web search with smart multi-tier fallback:
+     * 1. Tavily AI Search (TAVILY_API_KEY)
+     * 2. Jsoup Yahoo Search Scraper (Zero-config fallback)
      * @param query The search query
      * @param limit Maximum number of snippets to return
      * @return Formatted string of search snippets
      */
+    public String search(com.ratemypcbro.dto.SearchRequest req) {
+        if (req == null || req.query() == null || req.query().isBlank()) {
+            return "";
+        }
+        String depth = req.searchDepth() != null && !req.searchDepth().isBlank() ? req.searchDepth() : "basic";
+        int limit = req.maxResults() != null && req.maxResults() > 0 ? req.maxResults() : 3;
+        List<String> incDomains = req.includeDomains();
+        List<String> excDomains = req.excludeDomains() != null && !req.excludeDomains().isEmpty() ? req.excludeDomains() : List.of("userbenchmark.com");
+        String topic = req.topic() != null && !req.topic().isBlank() ? req.topic() : "general";
+
+        return searchViaTavilyRich(req.query(), depth, limit, incDomains, excDomains, topic);
+    }
+
     public String search(String query, int limit) {
-        if (queryCache.containsKey(query)) {
-            log.debug("📦 [WebScraper] Cache HIT for query: '{}'", query);
-            return queryCache.get(query);
+        return search(query, limit, null);
+    }
+
+    public String search(String query, int limit, List<String> includeDomains) {
+        String cacheKey = query + (includeDomains != null && !includeDomains.isEmpty() ? ":" + String.join(",", includeDomains) : "");
+        if (queryCache.containsKey(cacheKey)) {
+            log.debug("📦 [WebScraper] Cache HIT for query: '{}'", cacheKey);
+            return queryCache.get(cacheKey);
         }
 
         String resultText;
-        if (braveApiKey != null && !braveApiKey.isBlank()) {
-            resultText = searchViaBraveApi(query, limit);
+        if (tavilyApiKey != null && !tavilyApiKey.isBlank()) {
+            resultText = searchViaTavilyRich(query, "basic", limit, includeDomains, List.of("userbenchmark.com"), "general");
         } else {
             resultText = searchViaYahooScraper(query, limit);
         }
 
-        queryCache.put(query, resultText == null ? "" : resultText);
+        queryCache.put(cacheKey, resultText == null ? "" : resultText);
         return resultText;
     }
 
-    private String searchViaBraveApi(String query, int limit) {
-        log.debug("🦁 [Brave Search API] Querying: '{}'", query);
+    private String searchViaTavilyRich(String query, String depth, int limit, List<String> includeDomains, List<String> excludeDomains, String topic) {
+        log.debug("🏆 [Tavily Search API] Querying: '{}' (depth: {}, incDomains: {}, excDomains: {}, topic: {})", query, depth, includeDomains, excludeDomains, topic);
         try {
-            String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
-            String url = BRAVE_API_URL + "?q=" + encodedQuery + "&count=" + limit;
+            java.util.Map<String, Object> requestMap = new java.util.HashMap<>();
+            requestMap.put("api_key", tavilyApiKey.trim());
+            requestMap.put("query", query);
+            requestMap.put("search_depth", depth);
+            requestMap.put("include_answer", true);
+            requestMap.put("include_raw_content", false);
+            requestMap.put("max_results", limit);
+            requestMap.put("topic", topic);
+
+            if (excludeDomains != null && !excludeDomains.isEmpty()) {
+                requestMap.put("exclude_domains", excludeDomains);
+            }
+            if (includeDomains != null && !includeDomains.isEmpty()) {
+                requestMap.put("include_domains", includeDomains);
+            }
+
+            String requestBody = objectMapper.writeValueAsString(requestMap);
+            log.info("🏆 [Tavily Request Payload Body]:\n{}", requestBody);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(URI.create(TAVILY_API_URL))
+                    .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
-                    .header("X-Subscription-Token", braveApiKey.trim())
                     .timeout(Duration.ofSeconds(5))
-                    .GET()
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200) {
                 JsonNode root = objectMapper.readTree(response.body());
-                JsonNode resultsNode = root.path("web").path("results");
+                
+                // 1. Extract Tavily's pre-synthesized AI Answer (if available)
+                String tavilyAnswer = root.path("answer").asText("").trim();
+                
+                // 2. Extract top snippet highlights
+                JsonNode resultsNode = root.path("results");
                 List<String> snippets = new ArrayList<>();
                 for (JsonNode item : resultsNode) {
-                    String description = item.path("description").asText("");
-                    if (!description.isBlank()) {
-                        snippets.add(description);
+                    String content = item.path("content").asText("").trim();
+                    if (!content.isBlank()) {
+                        snippets.add(content);
                     }
                     if (snippets.size() >= limit) break;
                 }
 
-                String resultText = String.join("\n- ", snippets);
-                log.info("🦁 [Brave Search API] Scraped {} snippets for query: '{}'", snippets.size(), query);
-                log.debug("🦁 [Brave Snippets Content]:\n{}", resultText);
+                StringBuilder resultBuilder = new StringBuilder();
+                if (!tavilyAnswer.isBlank() && !tavilyAnswer.equalsIgnoreCase("null")) {
+                    resultBuilder.append("Summary: ").append(tavilyAnswer);
+                } else if (!snippets.isEmpty()) {
+                    // Fallback to snippets only if Tavily answer is unavailable
+                    resultBuilder.append("Details: ").append(String.join("\n- ", snippets));
+                }
+
+                String resultText = resultBuilder.toString().trim();
+                log.info("🏆 [Tavily Response AI Answer]: {}", tavilyAnswer.isBlank() ? "N/A" : tavilyAnswer);
+                log.info("🏆 [Tavily Response Snippets Count]: {} item(s)", snippets.size());
+                log.info("🏆 [Tavily Formatted Context Output]:\n{}", resultText);
                 return resultText;
             } else {
-                log.warn("⚠️ [Brave Search API] Returned HTTP {}. Falling back to Yahoo scraper...", response.statusCode());
+                log.warn("⚠️ [Tavily Search API] Returned HTTP {}. Falling back to Yahoo scraper...", response.statusCode());
                 return searchViaYahooScraper(query, limit);
             }
         } catch (Exception e) {
-            log.error("❌ [Brave Search API] Error: {}. Falling back to Yahoo scraper...", e.getMessage());
+            log.error("❌ [Tavily Search API] Error: {}. Falling back to Yahoo scraper...", e.getMessage());
             return searchViaYahooScraper(query, limit);
         }
     }
