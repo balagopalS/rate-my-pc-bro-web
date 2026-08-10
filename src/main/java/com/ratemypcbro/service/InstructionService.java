@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ratemypcbro.dto.PcSpecs;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -15,6 +16,7 @@ import java.io.InputStream;
 @Slf4j
 @Service
 @Getter
+@RequiredArgsConstructor
 public class InstructionService {
 
     @Value("classpath:instructions.json")
@@ -27,10 +29,6 @@ public class InstructionService {
     private String softwareVerdictUserPromptTemplate;
 
     private final ObjectMapper objectMapper;
-
-    public InstructionService(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     @PostConstruct
     public void init() {

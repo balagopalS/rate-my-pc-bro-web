@@ -1,6 +1,7 @@
 package com.ratemypcbro.service;
 
 import com.ratemypcbro.dto.PcSpecs;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AgentToolService {
 
     private static final List<String> HARDWARE_DOMAINS = List.of(
@@ -23,10 +25,6 @@ public class AgentToolService {
 
     private final WebScraper scraper;
     private final Map<String, String> hardwareBaselineCache = new ConcurrentHashMap<>();
-
-    public AgentToolService(WebScraper scraper) {
-        this.scraper = scraper;
-    }
 
     /**
      * Executes single consolidated scoped query for General PC analysis (CPU + GPU + Chassis + Thermals + Bottlenecks).

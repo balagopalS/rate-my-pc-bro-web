@@ -3,11 +3,13 @@ package com.ratemypcbro.service;
 import com.ratemypcbro.dto.GeneralVerdict;
 import com.ratemypcbro.dto.PcSpecs;
 import com.ratemypcbro.dto.SoftwareVerdict;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 @Service
+@RequiredArgsConstructor
 //this is used to toggle between different ai providers can be PROXY or LOCAL, in this future this class will
 // be able to handle tools.
 public class AiOrchestrator {
@@ -15,14 +17,7 @@ public class AiOrchestrator {
     private final OllamaAiProvider localProvider;
     private final ProxyAiProvider proxyProvider;
     private final AgentToolService agentToolService;
-    private final AtomicReference<AiProvider.Type> activeType;
-
-    public AiOrchestrator(OllamaAiProvider localProvider, ProxyAiProvider proxyProvider, AgentToolService agentToolService) {
-        this.localProvider = localProvider;
-        this.proxyProvider = proxyProvider;
-        this.agentToolService = agentToolService;
-        this.activeType = new AtomicReference<>(AiProvider.Type.LOCAL);
-    }
+    private final AtomicReference<AiProvider.Type> activeType = new AtomicReference<>(AiProvider.Type.LOCAL);
 
     public void setProviderType(AiProvider.Type type) {
         this.activeType.set(type);
