@@ -14,11 +14,10 @@ spring:
       api-key: ${OPENROUTER_API_KEY}
       chat:
         options:
-          model: openai/gpt-4o-mini
+          model: deepseek/deepseek-v4-flash
 
-brave:
-  search:
-    api-key: ${BRAVE_SEARCH_API_KEY:}
+tavily:
+  api-key: ${TAVILY_API_KEY:}
 
 springdoc:
   api-docs:

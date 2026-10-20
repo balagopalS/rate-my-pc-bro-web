@@ -1,99 +1,133 @@
 # Rate My PC Bro API
 
-An advanced, AI-powered hardware analysis and performance prediction engine built with Spring Boot.
+Stateless, AI-powered hardware analysis and performance prediction engine built with Java 21, Spring Boot 3.5, and Spring AI.
 
 ## Overview
 
-Rate My PC Bro is a stateless API designed to provide automated hardware appraisals and software performance predictions. By integrating real-time hardware discovery with Large Language Models (LLMs), the system delivers qualitative and quantitative verdicts on system configurations without the need for persistent data storage.
+Rate My PC Bro inspects host system specifications using OSHI (Operating System and Hardware Information) and generates hardware appraisals and software performance verdicts using Large Language Models (LLMs). The service operates statelessly and features agentic tools for live web lookup (via Tavily AI Search) and hardware baseline benchmarks.
 
-## Request Lifecycle
+---
 
-The API follows a structured request-response lifecycle to ensure accurate and context-aware verdicts:
+## Application Architecture Flowchart
 
-1.  **Request Reception:** The API receives a GET request at one of the hardware analysis endpoints.
-2.  **Hardware Discovery:** The **OSHI** service performs a deep inspection of the host system's CPU, GPU, and RAM.
-3.  **Provider Selection:** The **AI Orchestrator** identifies the active inference engine (Local Ollama or External Proxy).
-4.  **Prompt Engineering:** The system constructs a structured prompt containing the discovered hardware specifications and specific software requirements (if applicable).
-5.  **Agentic RAG & Inference:**
-    *   The AI model analyzes the prompt.
-    *   If real-time data is required (e.g., latest market prices or 2026 benchmarks), the model invokes a registered **Search Tool** via Spring AI Function Calling.
-    *   The model synthesizes a final verdict grounded in both static knowledge and retrieved internet data.
-6.  **Structured Synthesis:** The model's response is automatically mapped to strictly typed DTOs (`GeneralVerdict`, `SoftwareVerdict`) using Spring AI's structured output features.
-7.  **Response Delivery:** The final serialized JSON object is returned to the user.
+```mermaid
+flowchart TD
+    Client(["HTTP Client / API Consumer"]) -->|GET /ratemypcbro| Controller["RateMyPcBroController"]
+    Client -->|GET /ratemypcbro/software| Controller
 
-## Architectural Principles
+    subgraph Hardware Discovery Layer
+        Controller -->|Fetch Host Specs| PcSpecService["PcSpecService (OSHI Core)"]
+        PcSpecService -->|Discovered Specs| SpecsDTO["PcSpecs Object"]
+    end
 
-### 1. Statelessness
-The application operates entirely in memory. It does not utilize a database; hardware specifications are captured per request, processed via AI, and returned as a transient response.
+    subgraph AI Orchestration & Tool Execution
+        Controller -->|Pass Specs & User Intent| AiOrchestrator["AiOrchestrator"]
+        AiOrchestrator -->|Check Active Engine| Config{"Provider Mode"}
+        
+        Config -->|LOCAL| OllamaProvider["OllamaAiProvider (Local LLM)"]
+        Config -->|PROXY| ProxyProvider["ProxyAiProvider (OpenRouter API)"]
 
-### 2. Automated Hardware Discovery
-The system leverages the **OSHI (Operating System and Hardware Information)** library to perform deep inspection of the host machine's architecture, including CPU topology, GPU specifications, and memory configuration.
+        OllamaProvider -->|Function Calling| AgentToolService["AgentToolService"]
+        ProxyProvider -->|Function Calling| AgentToolService
 
-### 3. Agentic RAG & Internet Grounding
-The architecture employs an **Agentic Retrieval-Augmented Generation (RAG)** pattern. Unlike traditional RAG that relies on a static vector store, this system allows the LLM to autonomously decide when to "search the internet" to fetch the latest benchmarks, hardware news, or software requirements. This is implemented via **Spring AI Function Calling**, which bridges the LLM with a real-time web search tool.
+        subgraph Tool Suite
+            AgentToolService -->|Web Search Query| WebScraper["WebScraper (Tavily AI Search)"]
+            AgentToolService -->|Benchmark Lookup| HardwareBaselines["Hardware Baselines Cache"]
+        end
 
-### 4. AI Orchestration
-The API features a decoupled AI orchestration layer that allows for runtime switching between local and remote processing:
-- **Local Provider:** Utilizes **Spring AI** and **Ollama** for private, on-device inference.
-- **Proxy Provider:** Routes requests through an external API proxy, enabling advanced capabilities such as deep-web scraping and complex RAG workflows.
+        AgentToolService -->|Record Tool Call| ToolCallContext["ToolCallContext (ThreadLocal)"]
+    end
+
+    subgraph Structured Output & Response
+        OllamaProvider -->|Structured Output Mapping| DTOBuilder["Spring AI BeanOutputConverter"]
+        ProxyProvider -->|Structured Output Mapping| DTOBuilder
+        
+        DTOBuilder -->|GeneralVerdict / SoftwareVerdict| VerdictResult["Verdict DTO"]
+        ToolCallContext -->|Attach Tool Call Traces| VerdictResult
+        VerdictResult -->|JSON Response| Client
+    end
+```
+
+---
+
+## Key Architectural Principles
+
+1. **Stateless Operation**: No database dependencies. Hardware specs are captured per request, processed via AI inference, and returned as transient DTOs.
+2. **Automated Hardware Discovery**: Uses OSHI to inspect CPU topology, GPU, memory configuration, displays, motherboard, storage, and power sources.
+3. **Agentic RAG & Function Calling**: Integrates Spring AI tool calling with Tavily AI web search to retrieve real-time benchmarks and software requirements.
+4. **Decoupled Dual Provider**: Runtime toggling between local inference (`LOCAL` via Ollama) and external proxy inference (`PROXY` via OpenRouter API).
+5. **Thread-Safe Tool Call Tracing**: Uses `ThreadLocal` context management to track executed tool names, input queries, execution latency, and result snippets attached to each verdict.
+
+---
 
 ## Technology Stack
 
-- **Java 21** (LTS)
-- **Spring Boot 3.5.13**
-- **Spring AI (1.0.0-M5)**
-- **SpringDoc OpenAPI (Swagger)**
-- **OSHI core**
-- **Maven**
+- **Language**: Java 21 (LTS)
+- **Framework**: Spring Boot 3.5.13
+- **AI Framework**: Spring AI (1.0.0-M5)
+- **Hardware Inspection**: OSHI (Operating System and Hardware Information)
+- **Web Retrieval**: Tavily AI Search API & Jsoup
+- **API Documentation**: SpringDoc OpenAPI (Swagger UI)
+- **Build Tool**: Maven
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-1. **JDK 21** or higher.
-2. **Ollama** (for local AI inference).
-3. **Llama3.1 Model:** Ensure a tool-capable model is available locally:
-   ```bash
-   ollama pull llama3.1
-   ```
+- **JDK 21** or higher.
+- **Ollama** (required for local AI inference).
+- **Llama 3.1 Model**:
+  ```bash
+  ollama pull llama3.1
+  ```
 
-### Execution
+### Running the Application
 
-Compile and run the application using the Maven wrapper:
+Execute using the Maven wrapper:
+
 ```bash
 ./mvnw spring-boot:run
 ```
 
-The service defaults to `http://localhost:8081/api`.
-(Port 8081 is used to avoid local conflicts).
+The application runs on `http://localhost:8081/api`.
 
 ### API Documentation (Swagger)
-Interactive documentation is available at runtime:
-- **URL:** `http://localhost:8081/api/swagger-ui/index.html`
+
+Runtime API documentation is available at:
+- `http://localhost:8081/api/swagger-ui/index.html`
+
+---
 
 ## API Reference
 
-### Hardware Analysis
+### Hardware Verdicts
 
-#### General Hardware Verdict
-Analyzes current system specifications and returns a comprehensive rating and critique.
-- **URL:** `GET /ratemypcbro`
-- **Response Format:** JSON
+#### 1. General System Verdict
+Analyzes system hardware specifications and returns an overall rating, hardware breakdown, recommendations, and tool execution traces.
+- **Endpoint**: `GET /ratemypcbro`
+- **Response**: `GeneralVerdict` JSON
 
-#### Software Performance Prediction
-Predicts performance metrics for a specific application based on current hardware.
-- **URL:** `GET /ratemypcbro/{type}/{name}`
-- **Example:** `GET /ratemypcbro/game/cyberpunk2077`
-- **Response Format:** JSON
+#### 2. Software Performance Verdict
+Predicts performance for a specific application or game on the current hardware configuration.
+- **Endpoint**: `GET /ratemypcbro/software`
+- **Query Parameters**:
+  - `type` (required): Application category (e.g., `game`, `productivity`).
+  - `name` (required): Application name (e.g., `Cyberpunk 2077`, `Blender`).
+  - `notes` (optional): Additional user context (e.g., `1440p High settings`).
+- **Response**: `SoftwareVerdict` JSON
 
-### System Configuration
+### Configuration & Cache Management
 
-#### Update AI Provider
-Toggles the active AI inference engine at runtime.
-- **URL:** `POST /ratemypcbro/config/provider?type={LOCAL|PROXY}`
-- **Response Format:** JSON
+#### 1. Toggle AI Provider
+Switches active AI provider at runtime (`LOCAL` or `PROXY`).
+- **Endpoint**: `POST /ratemypcbro/config/provider?type={LOCAL|PROXY}`
 
-#### Current AI Provider Status
-Retrieves the identity of the active inference engine.
-- **URL:** `GET /ratemypcbro/config/provider`
-- **Response Format:** JSON
+#### 2. Get Active AI Provider
+Retrieves current active AI provider mode.
+- **Endpoint**: `GET /ratemypcbro/config/provider`
+
+#### 3. Clear System Caches
+Clears in-memory web scraping and hardware baseline lookup caches.
+- **Endpoint**: `POST /ratemypcbro/config/cache/clear`

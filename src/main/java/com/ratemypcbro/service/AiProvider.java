@@ -9,7 +9,11 @@ import com.ratemypcbro.dto.SoftwareVerdict;
 //possibly needs modification in the future for tools
 public interface AiProvider {
     GeneralVerdict getGeneralVerdict(PcSpecs specs, String groundingContext);
-    SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String groundingContext);
+    default SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String groundingContext) {
+        return getSoftwareRunScore(specs, type, name, null, groundingContext);
+    }
+    SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String notes, String groundingContext);
+
     String testAi();
     
     enum Type {

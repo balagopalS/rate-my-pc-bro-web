@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 @WebMvcTest(RateMyPcBroController.class)
 class RateMyPcBroControllerTest {
@@ -35,6 +36,9 @@ class RateMyPcBroControllerTest {
 
     @MockitoBean
     private WebScraper webScraper;
+
+    @MockitoBean
+    private com.ratemypcbro.service.AgentToolService agentToolService;
 
     @Test
     void shouldReturnGeneralVerdict() throws Exception {
@@ -59,7 +63,7 @@ class RateMyPcBroControllerTest {
     void shouldReturnSoftwareVerdict() throws Exception {
         SoftwareVerdict mockVerdict = new SoftwareVerdict("Cyperpunk 2077", "9/10", "Will run great", "Expect 60fps");
         when(pcSpecService.getLocalPcSpecs()).thenReturn(PcSpecs.builder().build());
-        when(aiOrchestrator.getSoftwareRunScore(any(), anyString(), anyString())).thenReturn(mockVerdict);
+        when(aiOrchestrator.getSoftwareRunScore(any(), anyString(), anyString(), any())).thenReturn(mockVerdict);
 
         mockMvc.perform(get("/ratemypcbro/software")
                 .param("type", "game")
@@ -108,5 +112,20 @@ class RateMyPcBroControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.entries_removed").value(5));
+    }
+
+    @Test
+    void shouldRejectProviderToggleFromNonLoopbackAddress() throws Exception {
+        mockMvc.perform(post("/ratemypcbro/config/provider")
+                        .with(request -> { request.setRemoteAddr("192.0.2.20"); return request; })
+                        .param("type", "PROXY"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldRejectCacheClearFromNonLoopbackAddress() throws Exception {
+        mockMvc.perform(post("/ratemypcbro/config/cache/clear")
+                        .with(request -> { request.setRemoteAddr("192.0.2.20"); return request; }))
+                .andExpect(status().isForbidden());
     }
 }

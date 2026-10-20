@@ -23,36 +23,7 @@ public class OllamaAiProvider implements AiProvider {
     @Override
     public GeneralVerdict getGeneralVerdict(PcSpecs specs, String groundingContext) {
         String systemInstructions = instructionService.getGeneralVerdictSystemInstructions();
-
-        String userPrompt = String.format("""
-            Analyze this computer deeply:
-            Operating System: %s
-            System Model: %s
-            CPU: %s
-            CPU Architecture/Clocks: %s
-            Motherboard: %s
-            GPU: %s
-            VRAM: %s
-            Connected Displays: %s
-            Total RAM Capacity: %s
-            RAM Speed/Gen: %s
-            Storage Breakdown: %s
-            Battery/Power Status: %s
-            
-            1. Set numeric 'rating' /10.
-            2. Generate 'verdict'.
-            3. Provide thorough 'review' including potential bottlenecks or build quality. Base your insights strictly on the GROUNDING CONTEXT provided below.
-            4. Score individual hardware in 'breakdown'.
-            5. Recommend actionable upgrades based on the specs.
-            
-            == GROUNDING CONTEXT ==
-            %s
-            =======================
-            """,
-            specs.getOs(), specs.getComputerModel(), specs.getProcessor(), specs.getCpuDetails(), specs.getMotherboard(), specs.getGraphicsCard(), 
-            specs.getVram(), specs.getDisplays(), specs.getTotalMemory(), specs.getRamDetails(), specs.getStorage(), specs.getPowerSource(),
-            groundingContext
-        );
+        String userPrompt = instructionService.buildGeneralVerdictUserPrompt(specs, groundingContext);
 
         log.info("🦙 [Ollama Provider] Sending General Verdict prompt to local LLM...");
         log.debug("🦙 [Ollama Prompt]:\n{}", userPrompt);
@@ -72,41 +43,16 @@ public class OllamaAiProvider implements AiProvider {
     }
 
     @Override
-    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String groundingContext) {
+    public SoftwareVerdict getSoftwareRunScore(PcSpecs specs, String type, String name, String notes, String groundingContext) {
         String systemInstructions = instructionService.getSoftwareVerdictSystemInstructions();
-
-        String prompt = String.format("""
-            Predict real-world performance of this system for the %s: '%s'.
-            
-            Hardware Profile:
-            - System Model: %s
-            - Operating System: %s
-            - CPU: %s (%s)
-            - GPU: %s
-            - VRAM: %s
-            - Memory: %s (%s)
-            - Storage: %s
-            - Target Resolution/Displays: %s
-            
-            == GROUNDING CONTEXT ==
-            %s
-            =======================
-            
-            Base your verdict strictly on the real-world experiences and official requirements found in the GROUNDING CONTEXT.
-            """,
-            type, name,
-            specs.getComputerModel(), specs.getOs(), specs.getProcessor(), specs.getCpuDetails(),
-            specs.getGraphicsCard(), specs.getVram(), specs.getTotalMemory(), specs.getRamDetails(),
-            specs.getStorage(), specs.getDisplays(),
-            groundingContext
-        );
+        String userPrompt = instructionService.buildSoftwareVerdictUserPrompt(specs, type, name, notes, groundingContext);
 
         log.info("🦙 [Ollama Provider] Sending Software Verdict prompt for [{}: {}] to local LLM...", type, name);
-        log.debug("🦙 [Ollama Prompt]:\n{}", prompt);
+        log.debug("🦙 [Ollama Prompt]:\n{}", userPrompt);
 
         SoftwareVerdict verdict = chatClient.prompt()
                 .system(systemInstructions)
-                .user(prompt)
+                .user(userPrompt)
                 .call()
                 .entity(SoftwareVerdict.class);
 
