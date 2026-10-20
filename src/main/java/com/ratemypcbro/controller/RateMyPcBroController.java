@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import jakarta.servlet.http.HttpServletRequest;
+import java.net.InetAddress;
 
 @Slf4j
 @RestController
@@ -74,7 +76,8 @@ public class RateMyPcBroController {
 
     @PostMapping("/config/provider")
     //this is used to toggle between different ai providers can be PROXY or LOCAL
-    public ResponseEntity<Map<String, String>> toggleProvider(@RequestParam AiProvider.Type type) {
+    public ResponseEntity<Map<String, String>> toggleProvider(@RequestParam AiProvider.Type type, HttpServletRequest request) {
+        if (!isLocalRequest(request)) return ResponseEntity.status(403).body(Map.of("status", "forbidden"));
         aiOrchestrator.setProviderType(type);
         return ResponseEntity.ok(Map.of(
             "status", "success",
@@ -92,7 +95,8 @@ public class RateMyPcBroController {
 
     @PostMapping("/config/cache/clear")
     //this endpoint clears the in-memory web scraping & hardware baseline cache
-    public ResponseEntity<Map<String, Object>> clearCache() {
+    public ResponseEntity<Map<String, Object>> clearCache(HttpServletRequest request) {
+        if (!isLocalRequest(request)) return ResponseEntity.status(403).body(Map.of("status", "forbidden"));
         int scraperCleared = webScraper.clearCache();
         int baselineCleared = agentToolService.clearCache();
         return ResponseEntity.ok(Map.of(
@@ -100,6 +104,14 @@ public class RateMyPcBroController {
             "message", "Web scraping & hardware baseline caches cleared successfully",
             "entries_removed", scraperCleared + baselineCleared
         ));
+    }
+
+    private boolean isLocalRequest(HttpServletRequest request) {
+        try {
+            return InetAddress.getByName(request.getRemoteAddr()).isLoopbackAddress();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     @GetMapping("/health")

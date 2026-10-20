@@ -60,7 +60,7 @@ public class InstructionService {
             specs.getMotherboard(), specs.getGraphicsCard(), specs.getVram(), specs.getDisplays(),
             specs.getTotalMemory(), specs.getRamDetails(), specs.getStorage(), specs.getPowerSource(),
             groundingContext
-        );
+        ) + "\nReturn a citations array with exact source URLs from the grounding context supporting your claims. Never invent URLs; use an empty array if none support a claim.";
     }
 
     /**
@@ -75,6 +75,6 @@ public class InstructionService {
             specs.getGraphicsCard(), specs.getVram(), specs.getTotalMemory(), specs.getRamDetails(),
             specs.getStorage(), specs.getDisplays(), formattedNotes,
             groundingContext
-        );
+        ) + "\nReturn a citations array with exact source URLs from the grounding context supporting your claims. Never invent URLs; use an empty array if none support a claim.";
     }
 }

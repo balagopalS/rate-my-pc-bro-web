@@ -4,12 +4,14 @@ import com.ratemypcbro.dto.GeneralVerdict;
 import com.ratemypcbro.dto.PcSpecs;
 import com.ratemypcbro.dto.SoftwareVerdict;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 //this is used to toggle between different ai providers can be PROXY or LOCAL, in this future this class will
 // be able to handle tools.
 public class AiOrchestrator {
@@ -40,11 +42,11 @@ public class AiOrchestrator {
             }
             return verdict;
         } catch (Exception e) {
-            String errorMsg = "Error getting AI verdict: " + e.getMessage();
+            log.error("Failed to generate general AI verdict", e);
             return GeneralVerdict.builder()
                     .rating(0.0)
-                    .verdict(errorMsg)
-                    .review("The AI is currently speechless.")
+                    .verdict("Unable to generate a verdict right now.")
+                    .review("Please try again later.")
                     .build();
         }
     }
@@ -58,12 +60,12 @@ public class AiOrchestrator {
             String groundingContext = agentToolService.getSoftwareGrounding(specs, name);
             return getActiveProvider().getSoftwareRunScore(specs, type, name, notes, groundingContext);
         } catch (Exception e) {
-            String errorMsg = "Error getting AI software score: " + e.getMessage();
+            log.error("Failed to generate software AI verdict for [{}]", name, e);
             return SoftwareVerdict.builder()
                     .software(name)
                     .score("N/A")
-                    .verdict(errorMsg)
-                    .performance_notes("Check your connection.")
+                    .verdict("Unable to generate a verdict right now.")
+                    .performance_notes("Please try again later.")
                     .build();
         }
     }
@@ -72,7 +74,8 @@ public class AiOrchestrator {
         try {
             return getActiveProvider().testAi();
         } catch (Exception e) {
-            return "ERROR: " + e.getMessage();
+            log.error("AI health check failed", e);
+            return "AI provider is unavailable.";
         }
     }
 }

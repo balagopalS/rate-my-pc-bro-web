@@ -17,6 +17,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,10 @@ public class WebScraper {
     @Value("${tavily.api-key:}")
     private String tavilyApiKey;
 
-    private final Map<String, String> queryCache = new ConcurrentHashMap<>();
+    private static final int MAX_CACHE_ENTRIES = 256;
+    private static final Duration CACHE_TTL = Duration.ofHours(1);
+    private final Map<String, CachedSearch> queryCache = new ConcurrentHashMap<>();
+    private record CachedSearch(String value, Instant expiresAt) {}
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -66,11 +70,15 @@ public class WebScraper {
     }
 
     public String search(String query, int limit, List<String> includeDomains) {
-        String cacheKey = query + (includeDomains != null && !includeDomains.isEmpty() ? ":" + String.join(",", includeDomains) : "");
-        if (queryCache.containsKey(cacheKey)) {
+        String cacheKey = query + "|limit=" + limit + "|include="
+                + (includeDomains != null ? String.join(",", includeDomains) : "")
+                + "|exclude=userbenchmark.com|depth=basic|topic=general";
+        CachedSearch cached = queryCache.get(cacheKey);
+        if (cached != null && cached.expiresAt().isAfter(Instant.now())) {
             log.debug("📦 [WebScraper] Cache HIT for query: '{}'", cacheKey);
-            return queryCache.get(cacheKey);
+            return cached.value();
         }
+        if (cached != null) queryCache.remove(cacheKey, cached);
 
         String resultText;
         if (tavilyApiKey != null && !tavilyApiKey.isBlank()) {
@@ -79,7 +87,14 @@ public class WebScraper {
             resultText = searchViaYahooScraper(query, limit);
         }
 
-        queryCache.put(cacheKey, resultText == null ? "" : resultText);
+        if (queryCache.size() >= MAX_CACHE_ENTRIES) {
+            queryCache.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(Instant.now()));
+            if (queryCache.size() >= MAX_CACHE_ENTRIES) {
+                String oldestKey = queryCache.entrySet().stream().min(java.util.Comparator.comparing(e -> e.getValue().expiresAt())).map(Map.Entry::getKey).orElse(null);
+                if (oldestKey != null) queryCache.remove(oldestKey);
+            }
+        }
+        queryCache.put(cacheKey, new CachedSearch(resultText == null ? "" : resultText, Instant.now().plus(CACHE_TTL)));
         return resultText;
     }
 
@@ -103,7 +118,7 @@ public class WebScraper {
             }
 
             String requestBody = objectMapper.writeValueAsString(requestMap);
-            log.info("🏆 [Tavily Request Payload Body]:\n{}", requestBody);
+            // Request body contains the Tavily API key. Never log it.
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(TAVILY_API_URL))
@@ -127,18 +142,16 @@ public class WebScraper {
                 for (JsonNode item : resultsNode) {
                     String content = item.path("content").asText("").trim();
                     if (!content.isBlank()) {
-                        snippets.add(content);
+                        String title = item.path("title").asText("Source");
+                        String url = item.path("url").asText("");
+                        snippets.add("[" + title + "]" + (url.isBlank() ? "" : " " + url) + ": " + content);
                     }
                     if (snippets.size() >= limit) break;
                 }
 
                 StringBuilder resultBuilder = new StringBuilder();
-                if (!tavilyAnswer.isBlank() && !tavilyAnswer.equalsIgnoreCase("null")) {
-                    resultBuilder.append("Summary: ").append(tavilyAnswer);
-                } else if (!snippets.isEmpty()) {
-                    // Fallback to snippets only if Tavily answer is unavailable
-                    resultBuilder.append("Details: ").append(String.join("\n- ", snippets));
-                }
+                if (!tavilyAnswer.isBlank() && !tavilyAnswer.equalsIgnoreCase("null")) resultBuilder.append("Summary: ").append(tavilyAnswer);
+                if (!snippets.isEmpty()) resultBuilder.append("\nSources:\n- ").append(String.join("\n- ", snippets));
 
                 String resultText = resultBuilder.toString().trim();
                 log.info("🏆 [Tavily Response AI Answer]: {}", tavilyAnswer.isBlank() ? "N/A" : tavilyAnswer);

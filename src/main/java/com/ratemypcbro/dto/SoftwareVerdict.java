@@ -24,6 +24,7 @@ public class SoftwareVerdict {
     private List<String> potentialBottlenecks;
     private List<ToolCallTrace> toolCallTrace;
     private String detailedAnalysis;
+    private List<String> citations;
 
     // Convenience 4-arg constructor for simple fallback initialization & legacy test mocks
     // TODO: Standardize all mock instantiations across unit tests to use Lombok @Builder pattern
