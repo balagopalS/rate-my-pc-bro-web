@@ -3,19 +3,16 @@ package com.ratemypcbro.controller;
 import com.ratemypcbro.dto.GeneralVerdict;
 import com.ratemypcbro.dto.PcSpecs;
 import com.ratemypcbro.dto.SoftwareVerdict;
-import com.ratemypcbro.dto.ToolCallTrace;
 import com.ratemypcbro.service.AgentToolService;
 import com.ratemypcbro.service.AiOrchestrator;
 import com.ratemypcbro.service.AiProvider;
 import com.ratemypcbro.service.PcSpecService;
 import com.ratemypcbro.service.WebScraper;
-import com.ratemypcbro.context.ToolCallContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.InetAddress;
@@ -34,18 +31,9 @@ public class RateMyPcBroController {
     @GetMapping
     //this returns a general verdict for the local pc
     public ResponseEntity<GeneralVerdict> getGeneralVerdict() {
-        ToolCallContext.clear();
-        try {
-            PcSpecs specs = pcSpecService.getLocalPcSpecs();
-            GeneralVerdict result = aiOrchestrator.getGeneralVerdict(specs);
-            List<ToolCallTrace> traces = ToolCallContext.getTraces();
-            if (result != null && !traces.isEmpty()) {
-                result.setToolCallTrace(traces);
-            }
-            return ResponseEntity.ok(result);
-        } finally {
-            ToolCallContext.clear();
-        }
+        PcSpecs specs = pcSpecService.getLocalPcSpecs();
+        GeneralVerdict result = aiOrchestrator.getGeneralVerdict(specs);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/software")
@@ -60,18 +48,9 @@ public class RateMyPcBroController {
             "📱 [Software Verdict Request] App: '{}', Type: '{}', CallerID: '{}', Notes: '{}'",
             name, type, clientIdentity, notes != null ? notes : "None"
         );
-        ToolCallContext.clear();
-        try {
-            PcSpecs specs = pcSpecService.getLocalPcSpecs();
-            SoftwareVerdict result = aiOrchestrator.getSoftwareRunScore(specs, type, name, notes);
-            List<ToolCallTrace> traces = ToolCallContext.getTraces();
-            if (result != null && !traces.isEmpty()) {
-                result.setToolCallTrace(traces);
-            }
-            return ResponseEntity.ok(result);
-        } finally {
-            ToolCallContext.clear();
-        }
+        PcSpecs specs = pcSpecService.getLocalPcSpecs();
+        SoftwareVerdict result = aiOrchestrator.getSoftwareRunScore(specs, type, name, notes);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/config/provider")

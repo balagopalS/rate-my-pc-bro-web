@@ -1,0 +1,6 @@
+spring:
+  ai:
+    retry:
+      max-attempts: 1
+    openai:
+      api-key: ${OPENROUTER_API_KEY:test-openrouter-key}

@@ -15,16 +15,6 @@ public class AiConfig {
     public ChatClient ollamaChatClient(OllamaChatModel model) {
         return ChatClient.builder(model)
                 .defaultAdvisors(new SimpleLoggerAdvisor())
-                .defaultFunctions(
-                    "searchHardwareThermalsAndChassis",
-                    "searchBottleneckAndHierarchy",
-                    "searchRedditHardwareSentiment",
-                    "searchUpgradePathAndMarketPrices",
-                    "searchSoftwareRequirements",
-                    "searchRedditCommunitySentiment",
-                    "searchHardwareCompatibility",
-                    "webSearchTool"
-                )
                 .build();
     }
 
@@ -32,16 +22,6 @@ public class AiConfig {
     public ChatClient openAiChatClient(OpenAiChatModel model) {
         return ChatClient.builder(model)
                 .defaultAdvisors(new SimpleLoggerAdvisor())
-                .defaultFunctions(
-                    "searchHardwareThermalsAndChassis",
-                    "searchBottleneckAndHierarchy",
-                    "searchRedditHardwareSentiment",
-                    "searchUpgradePathAndMarketPrices",
-                    "searchSoftwareRequirements",
-                    "searchRedditCommunitySentiment",
-                    "searchHardwareCompatibility",
-                    "webSearchTool"
-                )
                 .build();
     }
 }
